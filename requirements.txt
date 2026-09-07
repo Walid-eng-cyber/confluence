@@ -1,0 +1,24 @@
+# Confluence — Sprint 1 (A1) dependency set
+# Scope: only what's needed for the MVP core loop (Epics A-D).
+# Streamlit (Epic G) and rank_bm25 (hybrid retrieval, v1.1) are added when we get there.
+#
+# Embeddings run through Ollama (bge-m3, multilingual, pulled alongside the chat model) rather
+# than a separate sentence-transformers/torch install — one runtime for both the LLM and
+# embeddings, and it avoids pulling torch's full CUDA stack (multiple GB) just to embed text.
+
+# Orchestration
+langchain==0.3.14
+langgraph==0.2.62
+langchain-community==0.3.14
+
+# LLM + embeddings (both served locally via Ollama)
+langchain-ollama==0.2.2
+ollama==0.4.5
+
+# Vector store
+langchain-chroma==0.2.0
+chromadb==0.5.23
+
+# Data / config
+pydantic==2.10.4
+python-dotenv==1.0.1
