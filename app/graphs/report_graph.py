@@ -77,12 +77,10 @@ def _resolve_report_model() -> str:
 def build_runtime() -> ReportRuntime:
     poc = load_pipeline_module()
     return ReportRuntime(
-        llm=ChatOllama(
-            base_url=poc.OLLAMA_BASE_URL,
-            model=_resolve_report_model(),
-            temperature=0.1,
-            num_ctx=OLLAMA_NUM_CTX_REPORT,
-            num_predict=OLLAMA_REPORT_NUM_PREDICT,
+        llm=poc.build_chat_client(
+            _resolve_report_model(),
+            OLLAMA_NUM_CTX_REPORT,
+            OLLAMA_REPORT_NUM_PREDICT,
             keep_alive=OLLAMA_REPORT_KEEP_ALIVE,
         )
     )
@@ -133,6 +131,26 @@ def build_report_graph(runtime: ReportRuntime):
         except Exception as exc:
             return {
                 "narrative": f"NARRATION FAILED: {exc!r}\n\nThe computed findings stand on their own.",
+                "ungrounded_numbers": [],
+            }
+
+        if not narrative:
+            # A model that spends its whole budget on hidden reasoning returns nothing
+            # visible. Reporting that as an empty narrative would look like "nothing to
+            # say" rather than "I produced nothing" - the same confusion ERROR versus
+            # NOT_COVERED exists to prevent in Setup Review.
+            reason = str((response.response_metadata or {}).get("done_reason", "")).lower()
+            cause = (
+                "spent its whole generation budget on hidden reasoning"
+                if reason == "length"
+                else f"returned no visible text (done_reason={reason or 'unknown'})"
+            )
+            return {
+                "narrative": (
+                    f"NARRATION EMPTY: the model {cause}. Set OLLAMA_DISABLE_THINKING=1 or "
+                    "raise OLLAMA_REPORT_NUM_PREDICT. The computed findings above are "
+                    "unaffected."
+                ),
                 "ungrounded_numbers": [],
             }
 

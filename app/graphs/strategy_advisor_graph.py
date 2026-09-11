@@ -91,12 +91,10 @@ def build_runtime() -> AdvisorRuntime:
     poc = load_pipeline_module()
     model = _resolve_advisor_model(poc)
 
-    llm = ChatOllama(
-        base_url=poc.OLLAMA_BASE_URL,
-        model=model,
-        temperature=0.1,
-        num_ctx=OLLAMA_NUM_CTX_ADVISOR,
-        num_predict=OLLAMA_ADVISOR_NUM_PREDICT,
+    llm = poc.build_chat_client(
+        model,
+        OLLAMA_NUM_CTX_ADVISOR,
+        OLLAMA_ADVISOR_NUM_PREDICT,
         keep_alive=OLLAMA_ADVISOR_KEEP_ALIVE,
     )
     return AdvisorRuntime(poc=poc, llm=llm)
@@ -154,6 +152,24 @@ def build_strategy_advisor_graph(runtime: AdvisorRuntime):
         except Exception as exc:
             return {
                 "narrative": f"NARRATION FAILED: {exc!r}\n\nThe computed findings above stand on their own.",
+                "ungrounded_numbers": [],
+            }
+
+        if not narrative:
+            # Nothing visible is not the same as nothing to say. Reporting an empty
+            # narrative silently would be the ERROR-as-NOT_COVERED mistake again.
+            reason = str((response.response_metadata or {}).get("done_reason", "")).lower()
+            cause = (
+                "spent its whole generation budget on hidden reasoning"
+                if reason == "length"
+                else f"returned no visible text (done_reason={reason or 'unknown'})"
+            )
+            return {
+                "narrative": (
+                    f"NARRATION EMPTY: the model {cause}. Set OLLAMA_DISABLE_THINKING=1 or "
+                    "raise OLLAMA_ADVISOR_NUM_PREDICT. The computed findings above are "
+                    "unaffected."
+                ),
                 "ungrounded_numbers": [],
             }
 

@@ -107,9 +107,11 @@ Measured on qwen3:8b, RTX 4060, one Setup Review run over the default setup.
 
 | | Baseline | With both switches |
 |---|---|---|
-| Full run | ~146s | **~49s** |
+| Setup Review, warm | ~146s | **~46s** |
+| Setup Review, cold model | — | ~57s |
 | One Stage 2 match call | 9.3s | 3.4s |
 | Tokens generated per match call | 310 | 52 |
+| Report narration | 21.8s, **often empty** | 8.3s, 863 chars |
 
 Two changes, in order of effect:
 
@@ -127,6 +129,12 @@ Two changes, in order of effect:
    5GB models on an 8GB card, and the reasoning model extracted six facts where qwen3
    extracts four — each extra fact costs another Stage 2 call, so the restate model choice
    multiplies through the run.
+
+Suppressing thinking also fixed a bug rather than only saving time. With thinking on, the
+report and advisor narrations sometimes spent all 768 output tokens reasoning and returned
+**nothing visible**, which surfaced as an empty narrative with no error. It was
+intermittent, because it depended on how long the model happened to think. Both nodes now
+detect empty output and say what happened instead of showing nothing.
 
 Not yet done, in rough order of remaining value:
 
