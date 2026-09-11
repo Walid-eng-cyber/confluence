@@ -114,13 +114,29 @@ KEYWORDS: dict[str, list[str]] = {
     "sweep_vs_break": ["swept", "sweep", "break", "reclaim", "retest"],
 }
 
-def route(fact: str) -> list[str]:
-    """Return section numbers whose rules govern the provided fact line."""
+# Section text to drop before prompting. Section 15 mixes rule definitions with a
+# break-and-go examples block that attracts the model lexically.
+SECTION_TRIM_MARKERS: dict[str, str] = {"15": "\n### The break-and-go gap"}
+
+
+def route(
+    fact: str,
+    keywords: dict[str, list[str]] | None = None,
+    routing_map: dict[str, list[str]] | None = None,
+) -> list[str]:
+    """Return section numbers whose rules govern the provided fact line.
+
+    Defaults to this module's tables so existing callers (including the eval harness) keep
+    the behaviour they were measured against. A strategy config supplies its own.
+    """
+    keywords = KEYWORDS if keywords is None else keywords
+    routing_map = ROUTING_MAP if routing_map is None else routing_map
+
     fact_lower = fact.lower()
     sections: list[str] = []
-    for topic, words in KEYWORDS.items():
+    for topic, words in keywords.items():
         if any(word in fact_lower for word in words):
-            sections.extend(ROUTING_MAP[topic])
+            sections.extend(routing_map.get(topic, []))
     return sorted(set(sections), key=int)
 
 # 2. Constants(new) - module-level, so they are define once when the file loads.
@@ -353,16 +369,19 @@ def _section_excerpt_for_item(section_text: str, item_text: str, max_lines: int 
     return "\n".join(compact_lines)
 
 
-def _prepare_section_text_for_prompt(section_number: str, section_text: str, item_text: str) -> str:
+def _prepare_section_text_for_prompt(
+    section_number: str,
+    section_text: str,
+    item_text: str,
+    trim_markers: dict[str, str] | None = None,
+) -> str:
     """Prepare section text for prompting, excluding known non-governing examples."""
+    markers = SECTION_TRIM_MARKERS if trim_markers is None else trim_markers
     prepared = section_text
 
-    # Section 15 contains rule definitions plus a break-and-go examples block.
-    # Keep only the definitional portion to avoid lexical attraction to examples.
-    if section_number == "15":
-        marker = "\n### The break-and-go gap"
-        if marker in prepared:
-            prepared = prepared.split(marker, 1)[0].rstrip()
+    marker = markers.get(section_number)
+    if marker and marker in prepared:
+        prepared = prepared.split(marker, 1)[0].rstrip()
 
     return _section_excerpt_for_item(prepared, item_text)
 
@@ -761,6 +780,7 @@ def match_one_fact(
     llm_for_ctx=None,
     llm_on_length_retry_for_ctx=None,
     section_numbers: list[str] | None = None,
+    trim_markers: dict[str, str] | None = None,
 ) -> tuple[str, str]:
     if section_numbers is None:
         section_numbers = route(fact)
@@ -789,7 +809,9 @@ def match_one_fact(
             )
             continue
 
-        excerpt = _prepare_section_text_for_prompt(section_number, section_text, fact)
+        excerpt = _prepare_section_text_for_prompt(
+            section_number, section_text, fact, trim_markers
+        )
         prompt = _match_fact_prompt(fact, section_number, excerpt)
         if ENABLE_DYNAMIC_SECTION_CTX:
             section_ctx = _recommended_num_ctx_for_section(excerpt)
@@ -834,6 +856,7 @@ def match_one_unknown(
     llm_for_ctx=None,
     llm_on_length_retry_for_ctx=None,
     section_numbers: list[str] | None = None,
+    trim_markers: dict[str, str] | None = None,
 ) -> tuple[str, str]:
     if section_numbers is None:
         section_numbers = route(unknown)
@@ -862,7 +885,9 @@ def match_one_unknown(
             )
             continue
 
-        excerpt = _prepare_section_text_for_prompt(section_number, section_text, unknown)
+        excerpt = _prepare_section_text_for_prompt(
+            section_number, section_text, unknown, trim_markers
+        )
         prompt = MATCH_UNKNOWN_PROMPT.format(
             unknown=unknown,
             section_number=section_number,

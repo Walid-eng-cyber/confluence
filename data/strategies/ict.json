@@ -1,0 +1,49 @@
+{
+  "id": "ict",
+  "name": "ICT Concepts (reference)",
+  "description": "Original summary of publicly taught Inner Circle Trader concepts. Reference only - none of it is validated on your data.",
+  "document": "data/knowledge_base/ict_strategy.md",
+
+  "keywords": {
+    "bias": ["bias", "structure", "higher high", "higher highs", "higher low", "higher lows", "bos", "mss", "market structure shift", "displacement"],
+    "liquidity": ["liquidity", "pool", "buy-side", "sell-side", "equal highs", "equal lows", "pdh", "pdl", "asian range", "swept", "sweep"],
+    "order_block": ["order block", "orderblock", "zone", "demand", "supply"],
+    "fvg": ["fvg", "fair value gap", "imbalance", "gap"],
+    "premium_discount": ["premium", "discount", "ote", "optimal trade entry", "midpoint", "retracement"],
+    "entry_model": ["entry", "model a", "model b", "limit", "confirmation"],
+    "stop": ["stop", "stop loss", "buffer", "invalidation level"],
+    "rr": ["rr", "risk reward", "risk-reward", "risk/reward", "r:r", "target"],
+    "session": ["session", "killzone", "kill zone", "london", "new york", "lull", "timing"],
+    "news": ["news", "release", "high-impact", "high impact", "economic"],
+    "no_trade": ["no trade", "invalid", "skip", "avoid"],
+    "checklist": ["score", "checklist", "sizing", "full size", "half size"]
+  },
+
+  "routing_map": {
+    "bias": ["3"],
+    "liquidity": ["4"],
+    "order_block": ["5"],
+    "fvg": ["6"],
+    "premium_discount": ["7"],
+    "entry_model": ["8"],
+    "stop": ["9"],
+    "rr": ["10"],
+    "session": ["11"],
+    "news": ["14"],
+    "no_trade": ["12"],
+    "checklist": ["13"]
+  },
+
+  "trim_markers": {},
+
+  "min_rr_intraday": 2.0,
+  "score_no_trade_below": 6,
+  "score_full_size_at": 8,
+
+  "flag_sections": {
+    "RR_BELOW_MINIMUM": "10",
+    "SCORE_BELOW_THRESHOLD_TAKEN": "13",
+    "SIZE_EXCEEDS_SCORE": "13",
+    "DEAD_ZONE_ENTRY": "11"
+  }
+}

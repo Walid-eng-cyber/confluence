@@ -11,6 +11,7 @@ from app.services.trade_stats import (
     format_report_findings, period_bounds, rr_discipline,
 )
 from app.services.trade_store import connect, fetch_by_date_range, init_schema
+from app.services.strategy_registry import get_strategy
 from app.ui import theme
 
 
@@ -44,7 +45,8 @@ def _instrument_frame(blocks: list[StatBlock]) -> pd.DataFrame:
     )
 
 
-def render() -> None:
+def render(strategy_id: str | None = None) -> None:
+    config = get_strategy(strategy_id)
     st.subheader("Reports")
     st.caption(
         "Daily, weekly and monthly are the same computation over different dates. Every "
@@ -82,7 +84,7 @@ def render() -> None:
         st.warning(f"No trades logged between {start} and {end}.")
         return
 
-    stats = compute_strategy_stats(trades)
+    stats = compute_strategy_stats(trades, config)
     overall: StatBlock = stats["overall"]
     discipline = rr_discipline(trades)
 
@@ -112,7 +114,7 @@ def render() -> None:
             hide_index=True,
         )
 
-    breaches = [f for f in evaluate_rule_flags(trades) if f.offenders]
+    breaches = [f for f in evaluate_rule_flags(trades, config) if f.offenders]
     st.markdown("**Rule breaches in period**")
     if not breaches:
         st.markdown(":green[✓ none of the checkable rules were breached]")
@@ -123,18 +125,22 @@ def render() -> None:
                 st.markdown(f"- {offender}")
 
     with st.expander("Raw computed findings — what the model is given", expanded=False):
-        st.code(format_report_findings(trades, start, end), language="text")
+        st.code(format_report_findings(trades, start, end, config), language="text")
 
     st.divider()
     st.markdown("#### Written report")
 
-    signature = f"{start}:{end}"
+    signature = f"{config.id}:{start}:{end}"
     cached = st.session_state.get("report_narrative")
 
     if st.button("Write the report", type="primary", use_container_width=True):
         with st.spinner("Reading the numbers back..."):
             try:
-                final = _graph().invoke({"start_date": start, "end_date": end})
+                final = _graph().invoke({
+                    "start_date": start,
+                    "end_date": end,
+                    "strategy_id": config.id,
+                })
             except Exception as exc:
                 st.error(f"Report run failed: {exc!r}")
                 return

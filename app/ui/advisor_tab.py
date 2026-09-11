@@ -9,6 +9,7 @@ from app.services.trade_stats import (
     RuleFlag, StatBlock, compute_strategy_stats, evaluate_rule_flags,
 )
 from app.services.trade_store import connect, fetch_by_date_range, init_schema
+from app.services.strategy_registry import get_strategy
 from app.ui import theme
 
 FULL_RANGE = ("1900-01-01", "2999-12-31")
@@ -63,7 +64,8 @@ def _render_flag(flag: RuleFlag) -> None:
             st.markdown(f"- {offender}")
 
 
-def render() -> None:
+def render(strategy_id: str | None = None) -> None:
+    config = get_strategy(strategy_id)
     st.subheader("Strategy Advisor")
     st.caption(
         "Statistics and rule checks are computed in Python. The model only narrates them, "
@@ -99,8 +101,8 @@ def render() -> None:
         st.warning("No trades in that period.")
         return
 
-    stats = compute_strategy_stats(trades)
-    flags = evaluate_rule_flags(trades)
+    stats = compute_strategy_stats(trades, config)
+    flags = evaluate_rule_flags(trades, config)
     overall: StatBlock = stats["overall"]
 
     cols = st.columns(5)
@@ -140,13 +142,17 @@ def render() -> None:
     st.divider()
     st.markdown("#### Narrative")
 
-    signature = f"{start}:{end}"
+    signature = f"{config.id}:{start}:{end}"
     cached = st.session_state.get("advisor_narrative")
 
     if st.button("Generate narrative", type="primary", use_container_width=True):
         with st.spinner("Retrieving the sections behind each flag, then narrating..."):
             try:
-                final = _graph().invoke({"start_date": start, "end_date": end})
+                final = _graph().invoke({
+                    "start_date": start,
+                    "end_date": end,
+                    "strategy_id": config.id,
+                })
             except Exception as exc:
                 st.error(f"Advisor run failed: {exc!r}")
                 return

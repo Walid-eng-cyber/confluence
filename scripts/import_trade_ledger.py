@@ -5,7 +5,9 @@ layout of the Trade Ledger export and validates its own parse against the workbo
 Summary sheet before writing anything.
 
 Usage:
-    python scripts/import_trade_ledger.py <path-to-xlsx> [--dry-run]
+    python scripts/import_trade_ledger.py <path-to-xlsx> [--dry-run] [--strategy <id>]
+
+Trades are attributed to the default strategy unless --strategy names another one.
 """
 from __future__ import annotations
 
@@ -21,6 +23,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from app.models.trade import Trade, outcome_from_r
+from app.services.strategy_registry import default_strategy_id, strategy_ids
 from app.services.trade_store import connect, count_trades, init_schema, replace_source
 
 NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
@@ -144,7 +147,7 @@ def _labels(value: str) -> str | None:
     return None if value in {"", "-"} else value
 
 
-def parse_trades(rows: list[list[str]]) -> list[Trade]:
+def parse_trades(rows: list[list[str]], strategy_id: str) -> list[Trade]:
     header_index = next(i for i, row in enumerate(rows) if row and row[0] == "Date")
     header = rows[header_index]
     position = {name: idx for idx, name in enumerate(header) if name in HEADER_TO_FIELD}
@@ -188,6 +191,7 @@ def parse_trades(rows: list[list[str]]) -> list[Trade]:
                 labels=_labels(cell(row, "Label")),
                 notes=_text(cell(row, "Notes")),
                 source=SOURCE,
+                strategy_id=strategy_id,
             )
         )
     return trades
@@ -239,8 +243,21 @@ def verify_against_summary(trades: list[Trade], summary: dict[str, float]) -> li
 
 
 def main(argv: list[str]) -> int:
+    flags = {"--dry-run", "--strategy"}
     args = [a for a in argv[1:] if not a.startswith("--")]
     dry_run = "--dry-run" in argv
+
+    strategy_id = default_strategy_id()
+    if "--strategy" in argv:
+        index = argv.index("--strategy") + 1
+        if index >= len(argv):
+            print("--strategy needs a strategy id", file=sys.stderr)
+            return 2
+        strategy_id = argv[index]
+        args = [a for a in args if a != strategy_id]
+        if strategy_id not in strategy_ids():
+            print(f"Unknown strategy {strategy_id!r}; known: {strategy_ids()}", file=sys.stderr)
+            return 2
 
     if not args:
         print(__doc__)
@@ -256,8 +273,8 @@ def main(argv: list[str]) -> int:
         print(f"Expected a 'Trade Log' sheet, found: {list(sheets)}", file=sys.stderr)
         return 2
 
-    trades = parse_trades(sheets["Trade Log"])
-    print(f"Parsed {len(trades)} trades from {path.name}\n")
+    trades = parse_trades(sheets["Trade Log"], strategy_id)
+    print(f"Parsed {len(trades)} trades from {path.name}, attributed to '{strategy_id}'\n")
 
     summary = parse_summary(sheets.get("Summary", []))
     problems = verify_against_summary(trades, summary) if summary else []

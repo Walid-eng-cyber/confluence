@@ -1,0 +1,45 @@
+{
+  "id": "nabil",
+  "name": "Nabil v3",
+  "default": true,
+  "description": "Liquidity-first intraday system for XAU/USD, indices and FX. Every threshold is a hypothesis from a small sample.",
+  "document": "data/knowledge_base/nabil_strategy.md",
+
+  "keywords": {
+    "zone_grade": ["a-grade", "b-grade", "c-grade", "zone grade", "demand zone", "supply zone"],
+    "bias": ["bias", "higher high", "higher highs", "higher low", "higher lows", "daily bias"],
+    "target_pool": ["target pool", "pool", "liquidity", "liquidity pool", "pool has been taken", "pool taken"],
+    "rr": ["rr", "risk reward", "risk-reward", "risk/reward", "risk to reward", "r:r"],
+    "session": ["session", "london", "new york", "newyork", "timing", "cest", "cet"],
+    "news": ["news", "release", "tier 1", "tier-1", "economic"],
+    "structure_break": ["choch", "bos", "structure break", "criterion 2", "opposing swing", "last lower high", "last higher low"],
+    "sweep_vs_break": ["swept", "sweep", "break", "reclaim", "retest"]
+  },
+
+  "routing_map": {
+    "zone_grade": ["6"],
+    "bias": ["3"],
+    "target_pool": ["4", "5"],
+    "rr": ["10"],
+    "session": ["11"],
+    "news": ["14"],
+    "structure_break": ["8"],
+    "sweep_vs_break": ["15"]
+  },
+
+  "trim_markers": {
+    "15": "\n### The break-and-go gap"
+  },
+
+  "min_rr_intraday": 3.0,
+  "score_no_trade_below": 60,
+  "score_full_size_at": 75,
+
+  "flag_sections": {
+    "RR_BELOW_MINIMUM": "10",
+    "SCORE_BELOW_THRESHOLD_TAKEN": "13",
+    "SIZE_EXCEEDS_SCORE": "13",
+    "FULL_SIZE_CRITERION_2_UNMET": "8",
+    "DEAD_ZONE_ENTRY": "11"
+  }
+}

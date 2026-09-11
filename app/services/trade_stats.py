@@ -3,16 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
+from app.models.strategy import StrategyConfig
 from app.models.trade import OUTCOME_BREAKEVEN, OUTCOME_LOSS, OUTCOME_OPEN, OUTCOME_WIN, Trade
+from app.services.strategy_registry import get_strategy
 
 # docs/product_plan.md section 4.7b: a segment with fewer trades than this is inconclusive
 # rather than acted on, so the advisor cannot overfit a rule change to a handful of trades.
 MIN_SEGMENT_TRADES = 10
 
-# Strategy section 10: minimum RR is 3:1 intraday, 2:1 scalp.
-MIN_RR_INTRADAY = 3.0
-
-# Strategy section 13: score thresholds and the size each one permits.
+# Sizes a strategy can express, ordered. Thresholds and section numbers are per-strategy and
+# live in the strategy config, not here.
 SIZE_RANK = {"quarter": 1, "half": 2, "full": 3}
 
 
@@ -89,19 +89,41 @@ def build_stat_block(label: str, trades: list[Trade]) -> StatBlock:
     )
 
 
-def score_bucket(score: int | None) -> str | None:
-    """Strategy section 13 buckets."""
-    if score is None:
+def _resolve(config: StrategyConfig | None) -> StrategyConfig:
+    return config if config is not None else get_strategy()
+
+
+def score_bucket_labels(config: StrategyConfig) -> tuple[str, str, str] | None:
+    """Bucket names derived from this strategy's own thresholds.
+
+    Nabil scores out of 100 and gates at 60/75; the ICT reference scores out of 10 and gates
+    at 6/8. Hardcoding "below 60" would be wrong for anything but the first.
+    """
+    low, high = config.score_no_trade_below, config.score_full_size_at
+    if low is None or high is None:
         return None
-    if score < 60:
-        return "below 60"
-    if score <= 74:
-        return "60-74"
-    return "75+"
+    return (f"below {low}", f"{low}-{high - 1}", f"{high}+")
 
 
-def compute_strategy_stats(trades: list[Trade]) -> dict[str, object]:
+def score_bucket(score: int | None, config: StrategyConfig | None = None) -> str | None:
+    config = _resolve(config)
+    labels = score_bucket_labels(config)
+    if score is None or labels is None:
+        return None
+
+    if score < config.score_no_trade_below:
+        return labels[0]
+    if score < config.score_full_size_at:
+        return labels[1]
+    return labels[2]
+
+
+def compute_strategy_stats(
+    trades: list[Trade],
+    config: StrategyConfig | None = None,
+) -> dict[str, object]:
     """Whole-strategy numbers, computed in code so the model never estimates them."""
+    config = _resolve(config)
     resolved = _resolved(trades)
     open_trades = [t for t in trades if t.outcome == OUTCOME_OPEN]
 
@@ -117,8 +139,8 @@ def compute_strategy_stats(trades: list[Trade]) -> dict[str, object]:
         )
 
     by_score: list[StatBlock] = []
-    for bucket in ("below 60", "60-74", "75+"):
-        members = [t for t in trades if score_bucket(t.score) == bucket]
+    for bucket in score_bucket_labels(config) or ():
+        members = [t for t in trades if score_bucket(t.score, config) == bucket]
         if members:
             by_score.append(build_stat_block(f"score {bucket}", members))
 
@@ -149,81 +171,108 @@ def compute_strategy_stats(trades: list[Trade]) -> dict[str, object]:
     }
 
 
-def evaluate_rule_flags(trades: list[Trade]) -> list[RuleFlag]:
-    """Rule-adherence checks, each tied to the strategy section that defines the rule."""
+def evaluate_rule_flags(
+    trades: list[Trade],
+    config: StrategyConfig | None = None,
+) -> list[RuleFlag]:
+    """Rule-adherence checks, each tied to the section that defines the rule.
+
+    A check is only run when this strategy both names a section for it and supplies the
+    threshold it needs. A strategy with no criterion-2 concept simply does not get that
+    flag, rather than getting a flag that is vacuously clean.
+    """
+    config = _resolve(config)
     flags: list[RuleFlag] = []
 
-    below_rr = [
-        _ident(t) + f" (planned RR {t.rr_planned})"
-        for t in trades
-        if t.rr_planned is not None and t.rr_planned < MIN_RR_INTRADAY
-    ]
-    flags.append(RuleFlag(
-        code="RR_BELOW_MINIMUM",
-        section="10",
-        summary=(
-            f"taken with planned RR under the {MIN_RR_INTRADAY}:1 intraday minimum "
-            "(the 2:1 scalp floor cannot be applied: the ledger does not record whether a "
-            "trade was intraday or scalp)"
-        ),
-        offenders=below_rr,
-    ))
+    def section_for(code: str) -> str | None:
+        return config.flag_sections.get(code)
 
-    sub_sixty = [
-        _ident(t) + f" (score {t.score}, {t.size or 'size not logged'})"
-        for t in trades
-        if t.score is not None and t.score < 60
-    ]
-    flags.append(RuleFlag(
-        code="SUB_60_SCORE_TAKEN",
-        section="13",
-        summary="taken despite scoring below 60, which the rubric marks NO TRADE",
-        offenders=sub_sixty,
-    ))
+    rr_section = section_for("RR_BELOW_MINIMUM")
+    if rr_section and config.min_rr_intraday is not None:
+        minimum = config.min_rr_intraday
+        flags.append(RuleFlag(
+            code="RR_BELOW_MINIMUM",
+            section=rr_section,
+            summary=(
+                f"taken with planned RR under the {minimum:g}:1 intraday minimum "
+                "(a lower scalp floor cannot be applied: the ledger does not record whether "
+                "a trade was intraday or scalp)"
+            ),
+            offenders=[
+                _ident(t) + f" (planned RR {t.rr_planned})"
+                for t in trades
+                if t.rr_planned is not None and t.rr_planned < minimum
+            ],
+        ))
 
-    oversized: list[str] = []
-    for trade in trades:
-        if trade.score is None or trade.size is None:
-            continue
-        rank = SIZE_RANK.get(trade.size)
-        if rank is None:
-            continue
-        bucket = score_bucket(trade.score)
-        allowed = 0 if bucket == "below 60" else (SIZE_RANK["half"] if bucket == "60-74" else SIZE_RANK["full"])
-        if rank > allowed:
-            permitted = "no trade" if allowed == 0 else "half"
-            oversized.append(
-                f"{_ident(trade)} (score {trade.score} -> {permitted}, taken {trade.size})"
-            )
-    flags.append(RuleFlag(
-        code="SIZE_EXCEEDS_SCORE",
-        section="13",
-        summary="sized above what the score threshold permits",
-        offenders=oversized,
-    ))
+    score_section = section_for("SCORE_BELOW_THRESHOLD_TAKEN")
+    if score_section and config.score_no_trade_below is not None:
+        floor = config.score_no_trade_below
+        flags.append(RuleFlag(
+            code="SCORE_BELOW_THRESHOLD_TAKEN",
+            section=score_section,
+            summary=f"taken despite scoring below {floor}, which the rubric marks NO TRADE",
+            offenders=[
+                _ident(t) + f" (score {t.score}, {t.size or 'size not logged'})"
+                for t in trades
+                if t.score is not None and t.score < floor
+            ],
+        ))
 
-    full_size_unmet = [
-        _ident(t)
-        for t in trades
-        if t.criterion_2_met == "N" and t.size == "full"
-    ]
-    flags.append(RuleFlag(
-        code="FULL_SIZE_CRITERION_2_UNMET",
-        section="8",
-        summary="taken at full size with criterion 2 unmet, where the rule caps size at half",
-        offenders=full_size_unmet,
-    ))
+    size_section = section_for("SIZE_EXCEEDS_SCORE")
+    labels = score_bucket_labels(config)
+    if size_section and labels:
+        oversized: list[str] = []
+        for trade in trades:
+            if trade.score is None or trade.size is None:
+                continue
+            rank = SIZE_RANK.get(trade.size)
+            if rank is None:
+                continue
 
-    flags.append(RuleFlag(
-        code="DEAD_ZONE_ENTRY",
-        section="11",
-        summary="entries inside the 11:30-14:00 dead zone",
-        checkable=False,
-        unavailable_reason=(
-            "session is not recorded in the trade ledger, so dead-zone and killzone "
-            "adherence cannot be checked. Log session per trade to enable this."
-        ),
-    ))
+            bucket = score_bucket(trade.score, config)
+            if bucket == labels[0]:
+                allowed, permitted = 0, "no trade"
+            elif bucket == labels[1]:
+                allowed, permitted = SIZE_RANK["half"], "half"
+            else:
+                allowed, permitted = SIZE_RANK["full"], "full"
+
+            if rank > allowed:
+                oversized.append(
+                    f"{_ident(trade)} (score {trade.score} -> {permitted}, taken {trade.size})"
+                )
+        flags.append(RuleFlag(
+            code="SIZE_EXCEEDS_SCORE",
+            section=size_section,
+            summary="sized above what the score threshold permits",
+            offenders=oversized,
+        ))
+
+    criterion_section = section_for("FULL_SIZE_CRITERION_2_UNMET")
+    if criterion_section:
+        flags.append(RuleFlag(
+            code="FULL_SIZE_CRITERION_2_UNMET",
+            section=criterion_section,
+            summary="taken at full size with criterion 2 unmet, where the rule caps size at half",
+            offenders=[
+                _ident(t) for t in trades
+                if t.criterion_2_met == "N" and t.size == "full"
+            ],
+        ))
+
+    dead_zone_section = section_for("DEAD_ZONE_ENTRY")
+    if dead_zone_section:
+        flags.append(RuleFlag(
+            code="DEAD_ZONE_ENTRY",
+            section=dead_zone_section,
+            summary="entries inside the session window this strategy tells you to avoid",
+            checkable=False,
+            unavailable_reason=(
+                "session is not recorded in the trade ledger, so dead-zone and killzone "
+                "adherence cannot be checked. Log session per trade to enable this."
+            ),
+        ))
 
     return flags
 
@@ -280,10 +329,12 @@ def format_report_findings(
     trades: list[Trade],
     start: str,
     end: str,
+    config: StrategyConfig | None = None,
 ) -> str:
     """The factual block for a period report, computed entirely in code."""
-    stats = compute_strategy_stats(trades)
-    flags = evaluate_rule_flags(trades)
+    config = _resolve(config)
+    stats = compute_strategy_stats(trades, config)
+    flags = evaluate_rule_flags(trades, config)
     overall: StatBlock = stats["overall"]  # type: ignore[assignment]
     discipline = rr_discipline(trades)
 

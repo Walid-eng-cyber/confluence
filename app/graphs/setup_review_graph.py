@@ -8,10 +8,13 @@ from langchain_ollama import ChatOllama
 from langgraph.graph import END, START, StateGraph
 
 from app.core.pipeline_loader import load_pipeline_module
+from app.models.strategy import StrategyConfig
+from app.services.strategy_registry import get_strategy
 
 
 class SetupReviewState(TypedDict, total=False):
     setup_description: str
+    strategy_id: str
     stage1_raw: str
     facts: list[str]
     unknowns: list[str]
@@ -102,20 +105,27 @@ def build_setup_review_graph(runtime: SetupReviewRuntime):
     """Compile the Setup Review graph: parse -> retrieve -> validate -> recommend."""
     poc = runtime.poc
 
+    def config_for(state: SetupReviewState) -> StrategyConfig:
+        return get_strategy(state.get("strategy_id"))
+
     def parse_node(state: SetupReviewState) -> SetupReviewState:
         stage1_raw = poc.restate_facts(runtime.llm_restate, state["setup_description"])
         facts, unknowns = poc.parse_restate_output(stage1_raw)
         return {"stage1_raw": stage1_raw, "facts": facts, "unknowns": unknowns}
 
     def retrieve_node(state: SetupReviewState) -> SetupReviewState:
-        sections = poc.extract_sections(poc.STRATEGY_PATH.read_text(encoding="utf-8"))
+        config = config_for(state)
+        sections = poc.extract_sections(config.document.read_text(encoding="utf-8"))
         items = list(state["facts"]) + list(state["unknowns"])
         return {
             "sections": sections,
-            "routes": {item: poc.route(item) for item in items},
+            "routes": {
+                item: poc.route(item, config.keywords, config.routing_map) for item in items
+            },
         }
 
     def validate_node(state: SetupReviewState) -> SetupReviewState:
+        config = config_for(state)
         routes = state["routes"]
         sections = state["sections"]
         fact_results: list[tuple[str, str, str]] = []
@@ -130,6 +140,7 @@ def build_setup_review_graph(runtime: SetupReviewRuntime):
                 llm_for_ctx=runtime.llm_for_ctx,
                 llm_on_length_retry_for_ctx=runtime.llm_retry_for_ctx,
                 section_numbers=routes.get(fact),
+                trim_markers=config.trim_markers,
             )
             fact_results.append((status, fact, output))
 
@@ -142,6 +153,7 @@ def build_setup_review_graph(runtime: SetupReviewRuntime):
                 llm_for_ctx=runtime.llm_for_ctx,
                 llm_on_length_retry_for_ctx=runtime.llm_retry_for_ctx,
                 section_numbers=routes.get(unknown),
+                trim_markers=config.trim_markers,
             )
             unknown_results.append((status, unknown, output))
 

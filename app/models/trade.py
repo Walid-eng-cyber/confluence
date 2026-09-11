@@ -36,6 +36,7 @@ class Trade:
     sweep_before_fvg: int | None = None
     notes: str | None = None
     source: str = ""
+    strategy_id: str | None = None
     id: int | None = None
 
 

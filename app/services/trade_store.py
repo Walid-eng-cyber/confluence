@@ -7,6 +7,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from app.models.trade import Trade
+from app.services.strategy_registry import default_strategy_id
 
 load_dotenv()
 
@@ -37,7 +38,8 @@ CREATE TABLE IF NOT EXISTS trades (
     entry_model     TEXT,
     sweep_before_fvg INTEGER,
     notes           TEXT,
-    source          TEXT    NOT NULL
+    source          TEXT    NOT NULL,
+    strategy_id     TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_trades_date ON trades(trade_date);
@@ -50,12 +52,13 @@ _COLUMNS = (
     "regime", "regime_raw", "entry_price", "stop_price", "target_price", "rr_planned",
     "rr_achieved", "score", "size", "criterion_2_met", "labels", "session",
     "htf_zone_grade", "entry_model", "sweep_before_fvg", "notes", "source",
+    "strategy_id",
 )
 
 # Columns find_similar may filter on. Fixed whitelist: values are parameterised, names are not.
 _SIMILAR_FILTERS = (
     "instrument", "direction", "daily_bias", "regime", "size",
-    "criterion_2_met", "htf_zone_grade", "entry_model", "session",
+    "criterion_2_met", "htf_zone_grade", "entry_model", "session", "strategy_id",
 )
 
 
@@ -76,7 +79,30 @@ def connect(path: Path | str | None = None) -> sqlite3.Connection:
 
 def init_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    _migrate(conn)
     conn.commit()
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Add columns introduced after a store was first created.
+
+    strategy_id arrived with multi-strategy support. Rows written before it are attributed
+    to the default strategy, which is correct: they could not have been logged under any
+    other one.
+    """
+    existing = {row["name"] for row in conn.execute("PRAGMA table_info(trades)")}
+
+    if "strategy_id" not in existing:
+        conn.execute("ALTER TABLE trades ADD COLUMN strategy_id TEXT")
+
+    # Indexed here rather than in SCHEMA: on an older store the column does not exist until
+    # the ALTER above has run.
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_trades_strategy ON trades(strategy_id)")
+
+    conn.execute(
+        "UPDATE trades SET strategy_id = ? WHERE strategy_id IS NULL",
+        (default_strategy_id(),),
+    )
 
 
 def _to_trade(row: sqlite3.Row) -> Trade:

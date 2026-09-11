@@ -24,7 +24,7 @@ def _status_counts(items: list[ReviewItem]) -> dict[str, int]:
     return counts
 
 
-def render() -> None:
+def render(strategy_id: str | None = None) -> None:
     st.subheader("Setup Review")
     st.caption("Deterministic routing, section-grounded quotes, fail-closed verdict.")
 
@@ -44,7 +44,7 @@ def render() -> None:
 
     with st.spinner("Routing items and checking each against the strategy..."):
         try:
-            result = run_setup_review(setup.strip())
+            result = run_setup_review(setup.strip(), strategy_id)
         except Exception as exc:
             st.error(f"Run failed: {exc!r}")
             return

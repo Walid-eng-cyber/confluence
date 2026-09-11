@@ -14,6 +14,7 @@ from app.core.grounding import find_ungrounded_numbers
 from app.core.pipeline_loader import load_pipeline_module
 from app.models.trade import Trade
 from app.services.trade_stats import RuleFlag, compute_strategy_stats, evaluate_rule_flags, format_findings
+from app.services.strategy_registry import get_strategy
 from app.services.trade_store import connect, fetch_by_date_range
 
 OLLAMA_NUM_CTX_ADVISOR = int(os.getenv("OLLAMA_NUM_CTX_ADVISOR", "4096"))
@@ -59,6 +60,7 @@ NOT YET ANSWERABLE
 
 
 class AdvisorState(TypedDict, total=False):
+    strategy_id: str
     start_date: str
     end_date: str
     trades: list[Trade]
@@ -115,8 +117,9 @@ def build_strategy_advisor_graph(runtime: AdvisorRuntime):
         finally:
             conn.close()
 
-        stats = compute_strategy_stats(trades)
-        flags = evaluate_rule_flags(trades)
+        config = get_strategy(state.get("strategy_id"))
+        stats = compute_strategy_stats(trades, config)
+        flags = evaluate_rule_flags(trades, config)
         return {
             "trades": trades,
             "stats": stats,
@@ -125,7 +128,8 @@ def build_strategy_advisor_graph(runtime: AdvisorRuntime):
         }
 
     def retrieve_node(state: AdvisorState) -> AdvisorState:
-        sections = poc.extract_sections(poc.STRATEGY_PATH.read_text(encoding="utf-8"))
+        config = get_strategy(state.get("strategy_id"))
+        sections = poc.extract_sections(config.document.read_text(encoding="utf-8"))
 
         wanted: list[str] = []
         for flag in state["flags"]:

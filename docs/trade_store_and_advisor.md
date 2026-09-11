@@ -91,7 +91,7 @@ Each flag names the strategy section that defines the rule it checks.
 
 1. RR_BELOW_MINIMUM (section 10): planned RR under the 3:1 intraday floor. The 2:1 scalp
    floor cannot be applied, because the ledger does not record intraday versus scalp.
-2. SUB_60_SCORE_TAKEN (section 13): taken despite scoring below 60.
+2. SCORE_BELOW_THRESHOLD_TAKEN (section 13): taken despite scoring below 60.
 3. SIZE_EXCEEDS_SCORE (section 13): sized above what the score bucket permits.
 4. FULL_SIZE_CRITERION_2_UNMET (section 8): full size with criterion 2 unmet.
 5. DEAD_ZONE_ENTRY (section 11): NOT CHECKABLE, session is not logged.

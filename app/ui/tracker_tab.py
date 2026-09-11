@@ -8,6 +8,7 @@ import streamlit as st
 from app.models.trade import Trade
 from app.services.trade_stats import build_stat_block, evaluate_rule_flags
 from app.services.trade_store import connect, fetch_by_date_range, init_schema
+from app.services.strategy_registry import get_strategy
 from app.ui import theme
 
 COLUMNS = [
@@ -54,7 +55,8 @@ def _colour_outcome(value: object) -> str:
     return _OUTCOME_STYLE.get(str(value), "")
 
 
-def render() -> None:
+def render(strategy_id: str | None = None) -> None:
+    config = get_strategy(strategy_id)
     rows = _load()
 
     st.subheader("Trade Tracker")
@@ -133,7 +135,7 @@ def render() -> None:
     st.dataframe(styled, use_container_width=True, hide_index=True)
 
     with st.expander("Rule-adherence flags on this selection", expanded=False):
-        for flag in evaluate_rule_flags(selected):
+        for flag in evaluate_rule_flags(selected, config):
             if not flag.checkable:
                 st.markdown(f"**{flag.code}** — not checkable (section {flag.section})")
                 st.caption(flag.unavailable_reason or "")

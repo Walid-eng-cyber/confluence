@@ -12,6 +12,7 @@ from app.core.grounding import find_ungrounded_numbers
 from app.core.pipeline_loader import load_pipeline_module
 from app.models.trade import Trade
 from app.services.trade_stats import format_report_findings
+from app.services.strategy_registry import get_strategy
 from app.services.trade_store import connect, fetch_by_date_range
 
 OLLAMA_NUM_CTX_REPORT = int(os.getenv("OLLAMA_NUM_CTX_REPORT", "4096"))
@@ -49,6 +50,7 @@ RULE ADHERENCE
 
 
 class ReportState(TypedDict, total=False):
+    strategy_id: str
     start_date: str
     end_date: str
     trades: list[Trade]
@@ -104,7 +106,10 @@ def build_report_graph(runtime: ReportRuntime):
     def compute_node(state: ReportState) -> ReportState:
         return {
             "findings": format_report_findings(
-                state["trades"], state["start_date"], state["end_date"]
+                state["trades"],
+                state["start_date"],
+                state["end_date"],
+                get_strategy(state.get("strategy_id")),
             )
         }
 

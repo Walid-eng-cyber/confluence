@@ -5,22 +5,19 @@ import re
 import streamlit as st
 
 from app.core.pipeline_loader import load_pipeline_module
-from app.services.trade_stats import MIN_RR_INTRADAY
+from app.services.strategy_registry import get_strategy
 from app.ui import theme
-
-# The sections a trader wants in front of them, rather than all 21 at once.
-PINNED = ("1", "4", "6", "7", "10", "13", "16")
 
 
 @st.cache_data(show_spinner=False)
-def _load_strategy() -> tuple[str, dict[str, str], dict[str, str]]:
+def _load_strategy(strategy_id: str) -> tuple[str, dict[str, str], dict[str, str]]:
     """Return (raw text, {number: body}, {number: title}).
 
     Read from the same file the pipeline reads, so what is displayed cannot drift from
     what is actually evaluated against.
     """
     poc = load_pipeline_module()
-    raw = poc.STRATEGY_PATH.read_text(encoding="utf-8")
+    raw = get_strategy(strategy_id).document.read_text(encoding="utf-8")
     sections = poc.extract_sections(raw)
 
     titles = {
@@ -43,28 +40,33 @@ def _headline(sections: dict[str, str]) -> str | None:
     return " ".join(lines).replace("**", "") or None
 
 
-def render() -> None:
-    raw, sections, titles = _load_strategy()
+def render(strategy_id: str | None = None) -> None:
+    config = get_strategy(strategy_id)
+    raw, sections, titles = _load_strategy(config.id)
 
-    st.subheader("Strategy")
+    st.subheader(config.name)
+    if config.description:
+        st.caption(config.description)
     st.caption(
-        "Rendered from data/knowledge_base/nabil_strategy.md, the same file Setup Review "
-        "quotes from. Editing that file updates both."
+        f"Rendered from {config.document.name}, the same file Setup Review quotes from. "
+        "Editing that file updates both."
     )
 
     headline = _headline(sections)
     if headline:
         st.markdown(f'<div class="ct-rule">{headline}</div>', unsafe_allow_html=True)
 
-    theme.chips([
-        ("Min RR intraday", f"{MIN_RR_INTRADAY:g}:1"),
-        ("Min RR scalp", "2:1"),
-        ("Score &lt;60", "no trade"),
-        ("Score 60-74", "half size"),
-        ("Score 75+", "full size"),
-        ("Sections", str(len(sections))),
-    ])
-    st.caption("Thresholds above are the ones the advisor's rule checks enforce.")
+    chips: list[tuple[str, str]] = []
+    if config.min_rr_intraday is not None:
+        chips.append(("Min RR", f"{config.min_rr_intraday:g}:1"))
+    if config.score_no_trade_below is not None:
+        chips.append((f"Score &lt;{config.score_no_trade_below}", "no trade"))
+    if config.score_full_size_at is not None:
+        chips.append((f"Score {config.score_full_size_at}+", "full size"))
+    chips.append(("Sections", str(len(sections))))
+    chips.append(("Routed topics", str(len(config.routing_map))))
+    theme.chips(chips)
+    st.caption("Thresholds above are the ones this strategy's rule checks enforce.")
 
     query = st.text_input(
         "Filter sections",
@@ -77,8 +79,13 @@ def render() -> None:
         st.caption(f"{len(matches)} section(s) match.")
         show, expanded = matches, True
     else:
-        show, expanded = list(PINNED), False
-        st.caption("Showing key sections. Search above, or open the full document below.")
+        # The sections this strategy actually routes to — what the pipeline can quote.
+        routed = {number for numbers in config.routing_map.values() for number in numbers}
+        show, expanded = sorted(routed, key=int), False
+        st.caption(
+            f"Showing the {len(routed)} sections Setup Review routes to. Search above, or "
+            "open the full document below."
+        )
 
     for number in sorted(show, key=int):
         body = sections.get(number)

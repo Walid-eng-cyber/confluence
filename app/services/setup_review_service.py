@@ -36,11 +36,14 @@ def _get_graph() -> Any:
     return _GRAPH_CACHE
 
 
-def run_setup_review(setup_description: str) -> ReviewResult:
+def run_setup_review(setup_description: str, strategy_id: str | None = None) -> ReviewResult:
     graph = _get_graph()
 
     started = time.perf_counter()
-    final = graph.invoke({"setup_description": setup_description})
+    final = graph.invoke({
+        "setup_description": setup_description,
+        "strategy_id": strategy_id,
+    })
     runtime_sec = round(time.perf_counter() - started, 2)
 
     items = [
