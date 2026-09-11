@@ -1,271 +1,152 @@
-# APP documentation
+# App reference
+
+Operator reference for the Streamlit app: what each section does, every configuration
+variable, and how to run things.
+
+This document deliberately does **not** re-explain how the pipelines work. That lives in
+[the README](../README.md) as a summary and in [foundations.md](foundations.md) as an
+explanation from first principles. Duplicating it here is how documentation goes stale.
+
+## 1. Sections
+
+The app is one page with five sections. Navigation is session state rather than `st.tabs`,
+because a tab's selection is client-side and is lost on rerun, which threw the user into a
+different section whenever a filter fired.
+
+A strategy picker sits beside the navigation. Everything below respects it.
+
+| Section | What it shows | Model calls |
+|---|---|---|
+| Setup Review | Status counts, Stage 3 verdict, the two-sided case with precedent, per-item Stage 2 evidence, Stage 1 raw output | One per run plus one per routed item-section pair |
+| Strategy | The selected strategy rendered from its own source file, its thresholds, and a section filter | None |
+| Trade Tracker | Metrics, equity curve, filters on instrument / outcome / criterion 2, colour-coded table, rule flags for the current selection, notes | None |
+| Reports | Day, week, month or all-logged. Metrics, RR discipline, per-instrument table, rule breaches, and the raw findings block handed to the model | One, behind a button |
+| Advisor | Whole-strategy stats, score-bucket and criterion-2 segments, rule-adherence flags | One, behind a button |
+
+Reports and Advisor render every number immediately and put narration behind a button,
+because the numbers cost nothing and the narration costs a model call.
+
+## 2. Strategy scoping
+
+The picker changes more than the Strategy section. Trade Tracker, Reports and Advisor all
+query scoped to the selected strategy, so switching changes the trade history with it.
+
+A strategy with no logged trades shows an empty state naming how many trades exist under
+other strategies and why they are withheld. It is never filled with sample data: every
+figure in this system is supposed to trace to a trade that was actually taken.
+
+## 3. Configuration
+
+All optional. Defaults shown.
+
+### Models and endpoint
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama endpoint |
+| `OLLAMA_CHAT_MODEL` | `deepseek-r1:8b` | Fallback for the Stage 1 restate model |
+| `OLLAMA_RESTATE_MODEL` | `OLLAMA_CHAT_MODEL` | Stage 1 only |
+| `OLLAMA_MATCH_MODEL` | `qwen3:8b` | Stage 2 matching and quoting |
+| `OLLAMA_ADVISOR_MODEL` | match model | Advisor narration |
+| `OLLAMA_REPORT_MODEL` | match model | Report narration |
+
+A configured model that is not installed falls back to the match model rather than failing.
+
+**The default is two different 8B models, which needs roughly 10GB of VRAM.** On an 8GB card
+that terminates llama-server. Point `OLLAMA_RESTATE_MODEL` at the match model until the
+two-tier split is worth the swap cost.
+
+### Context and generation
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `OLLAMA_NUM_CTX_RESTATE` | `1536` | Stage 1 context window |
+| `OLLAMA_NUM_CTX` | `1536` | Fallback for the above |
+| `OLLAMA_NUM_CTX_MATCH` | `4096` | Stage 2 context window |
+| `OLLAMA_NUM_CTX_MATCH_CAP` | `4096` | Ceiling on Stage 2 context |
+| `OLLAMA_SECTION_CTX_FLOOR` | `2048` | Floor for per-section dynamic sizing |
+| `OLLAMA_NUM_CTX_ADVISOR` | `4096` | Advisor context window |
+| `OLLAMA_NUM_CTX_REPORT` | `4096` | Report context window |
+| `OLLAMA_MATCH_NUM_PREDICT` | `768` | Stage 2 output cap |
+| `OLLAMA_MATCH_NUM_PREDICT_RETRY` | `1536` | Raised cap for the one length-capped rescue |
+| `OLLAMA_ADVISOR_NUM_PREDICT` | `1024` | Advisor output cap |
+| `OLLAMA_REPORT_NUM_PREDICT` | `768` | Report output cap |
+| `PROMPT_CONTEXT_CHARS` | `3000` | Excerpt budget for whole-document prompting |
+
+### Reliability
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `OLLAMA_MATCH_TIMEOUT_SEC` | `60` | Bounds a Stage 2 call, converting a hang into an explicit ERROR |
+| `OLLAMA_RETRIES` | `1` | Retry attempts |
+| `OLLAMA_RETRY_DELAY_SEC` | `0.2` | Initial backoff |
+| `OLLAMA_RETRY_MAX_DELAY_SEC` | `1.0` | Backoff ceiling |
+| `OLLAMA_MATCH_KEEP_ALIVE` | `10m` | How long the match model stays resident |
+| `OLLAMA_ADVISOR_KEEP_ALIVE` | `10m` | Advisor model residency |
+| `OLLAMA_REPORT_KEEP_ALIVE` | `10m` | Report model residency |
+| `RAW_PARSE_DEBUG_ONCE` | `1` | Print one raw response when parsing fails |
+
+### Behaviour flags
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ENABLE_SIDE_CLASSIFICATION` | `0` | Adds the `Side` field so the two-sided case can argue each fact. **Off by default**: enabling it changes the match prompt the eval harness measures, so re-baseline first. With it off, rule-matched facts are listed as unclassified and the output says so. |
+| `ENABLE_DYNAMIC_SECTION_CTX` | `0` | Per-section context sizing with cached clients |
+
+### Data
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `TRADE_DB_PATH` | `./data/trades/confluence.db` | SQLite store |
+| `DEFAULT_STRATEGY_ID` | the config marked `"default": true` | Which strategy the app opens on |
 
-## 1. What this app is
-
-This app is a Streamlit frontend over the Setup Review pipeline.
-
-Its job is to:
-
-1. Accept a trading setup description.
-2. Evaluate that setup against the strategy document.
-3. Return a structured, fail-safe result with explicit statuses.
-
-It is intentionally safety-first:
-
-1. Runtime/model failures are marked as ERROR.
-2. ERROR is never treated as NOT_COVERED.
-3. Final verdict is fail-closed when required checks fail.
-
-## 2. Why it was implemented this way
-
-The original risk in LLM-only evaluation was ambiguity and hidden failure modes.
-
-This implementation reduces that risk by:
-
-1. Deterministic routing in Python.
-2. Per-item, section-scoped model calls.
-3. Strict output normalization and verification.
-4. Explicit status model and Stage 3 gate.
-
-Result:
-
-1. You can inspect every item and its governing section.
-2. You can separate business logic misses from runtime faults.
-3. You can benchmark quality and runtime with a reproducible eval harness.
-
-## 3. High-level architecture
-
-```mermaid
-flowchart TD
-    UI[Streamlit UI] --> SVC[Setup Review Service]
-    SVC --> GRAPH[LangGraph: parse -> retrieve -> validate -> recommend]
-    GRAPH --> POC[setup_review_poc.py]
-    POC --> STRAT[nabil_strategy.md]
-    POC --> OLLAMA[Ollama Models]
-    GRAPH --> OUT[Stage 1 + Stage 2 + Stage 3 + two-sided case]
-    OUT --> UI
-```
-
-What each block is for:
-
-1. Streamlit UI: operator interaction and result display.
-2. Service layer: invokes the graph and returns structured objects to UI.
-3. LangGraph graph: the pipeline's control flow as explicit, inspectable nodes.
-4. setup_review_poc.py: core matching logic and safety behavior.
-5. Strategy markdown: source-of-truth rules.
-6. Ollama: local model inference runtime.
-
-## 4. Request lifecycle
-
-When the user clicks Run setup review:
-
-1. UI reads setup text.
-2. Service invokes the compiled graph (built once per process, including model warmup).
-3. parse node: Stage 1 model restates facts and unknowns.
-4. retrieve node: re-reads the strategy sections and computes the deterministic routing plan.
-5. validate node: Stage 2 evaluates each item against its routed sections, verifying quote
-   grounding and normalizing response shape.
-6. recommend node: Stage 3 verdict plus the two-sided case.
-7. UI displays runtime, status counts, verdict, the case, and per-item evidence.
-
-The retrieve node re-reads nabil_strategy.md on every run, so edits to the strategy take
-effect without restarting the app. Model clients are cached, so they do not.
-
-## 5. Core files and what they are for
-
-1. streamlit_app.py
-   - Frontend page for Setup Review MVP.
-   - Shows metrics, Stage 1 raw output, Stage 2 item output, Stage 3 verdict.
-
-2. app/services/setup_review_service.py
-   - Runtime bridge between UI and graph.
-   - Compiles the graph once, invokes it, returns typed result objects.
-
-3. app/graphs/setup_review_graph.py
-   - The pipeline as a LangGraph StateGraph (parse, retrieve, validate, recommend).
-   - Owns model client construction and warmup; holds no strategy text.
-
-4. app/core/pipeline_loader.py
-   - Loads scripts/setup_review_poc.py as a module, once per process.
-
-5. scripts/setup_review_poc.py
-   - Core logic implementation.
-   - Includes routing, parsing, matching, retries, normalization, verification, verdict gating,
-     and two-sided case composition.
-
-6. data/knowledge_base/nabil_strategy.md
-   - Rule source of truth used for section parsing and quote verification.
-
-## 6. Status model and why it exists
-
-The app uses four statuses:
-
-1. OK
-   - Item evaluated successfully with parseable structured output.
-
-2. NOT_COVERED
-   - Routed section does not provide governing rule content for the item.
-
-3. NOT_ROUTED
-   - Deterministic router intentionally made no model call.
-
-4. ERROR
-   - Technical/runtime failure or malformed model output.
-
-Purpose:
-
-1. Prevent silent false negatives.
-2. Make failure modes observable.
-3. Keep final trade verdict safe under uncertainty.
-
-## 7. Implementation details in setup_review_poc.py
-
-Main components and purpose:
-
-1. route()
-   - Maps item text to strategy section numbers using KEYWORDS and ROUTING_MAP.
-
-2. parse_numbered_h2_sections()
-   - Builds a section map from numbered H2 headings.
-
-3. parse_restate_output()
-   - Extracts facts and unknowns from Stage 1 output robustly.
-
-4. _invoke_with_retry()
-   - Handles retries, timeout checks, length-cap diagnostics, and controlled retry escalation.
-
-5. _normalize_structured_response()
-   - Enforces strict output shape and heading guard behavior.
-
-6. find_unverified_quotes()
-   - Confirms returned quote belongs to routed section source text.
-
-7. match_one_fact() and match_one_unknown()
-   - Execute per-item routed matching and aggregate status.
-
-8. build_stage3_verdict()
-   - Converts item-level outputs into final fail-safe decision state.
-
-## 8. Runtime controls and purpose
-
-Important controls:
-
-1. /no_think in match prompts
-   - Reduces hidden reasoning-token burn and latency.
-
-2. keep_alive + warmup
-   - Reduces cold-start and reload overhead.
-
-3. num_predict and num_predict_retry
-   - Controls output length and allows one controlled rescue on length-capped empty output.
-
-4. timeout and retries
-   - Prevents hanging calls and captures deterministic failure semantics.
-
-5. section-focused excerpts + per-section num_ctx
-   - Reduces prompt load and improves runtime efficiency.
-
-6. ENABLE_SIDE_CLASSIFICATION (default 0)
-   - Adds a Side field (SUPPORTS / RISK / NEUTRAL) to the Stage 2 fact prompt so the
-     two-sided case can argue each rule-matched fact.
-   - Off by default because enabling it changes the exact match prompt the eval harness
-     measures. Re-baseline scripts/eval_match.py before promoting it, per the decision rule
-     in eval_pipeline_and_results.md.
-   - With the flag off the rendered prompt is byte-identical to the pre-D4 baseline.
-
-## 9. Frontend behavior
-
-UI behavior in streamlit_app.py:
-
-1. Text area for setup description.
-2. Run button triggers full pipeline execution.
-3. Summary metrics:
-   - runtime
-   - OK count
-   - NOT_COVERED count
-   - ERROR count
-   - NOT_ROUTED count
-4. Stage 3 verdict shown first.
-5. Two-sided case.
-6. Stage 1 raw output expandable.
-7. Stage 2 per-item details expandable.
-
-Purpose:
-
-1. Give quick top-line health (counts + verdict).
-2. Preserve full traceability for diagnostics.
-
-### The two-sided case
-
-build_two_sided_case() composes the supporting and risk sides from Stage 2 output only. It
-makes no model call and adds no claim that is not already backed by a quote checked against
-the routed section, so it introduces no new hallucination surface.
-
-Placement rules:
-
-1. Supporting side: facts whose governing rule was matched and labelled SUPPORTS.
-2. Risk side: facts labelled RISK, facts with no governing rule matched, facts the router
-   skipped, missing inputs, and anything that failed to evaluate.
-3. Unclassified: facts matched to a rule but labelled NEUTRAL.
-
-Safety behaviour:
-
-1. An unreadable or ambiguous Side label degrades to NEUTRAL, never to SUPPORTS, so a
-   garbled response cannot become an argument in favour of a trade.
-2. Where one item routes to several sections, RISK outranks SUPPORTS, so a rule flagging a
-   problem is never hidden behind a supporting match elsewhere.
-3. Guard rejection diagnostics (heading-like quote, incomplete table row) are never shown as
-   trading rationale. An item on a guard path is reported as having no governing rule matched.
-4. With ENABLE_SIDE_CLASSIFICATION off, every rule-matched fact is unclassified and the case
-   says so, rather than implying an empty supporting side is a finding.
-
-## 10. Evaluation and quality measurement
-
-The app pipeline is accompanied by reproducible evaluation scripts.
-
-1. tests/ground_truth.py
-   - Fixed 11-item answer key.
-
-2. scripts/eval_match.py
-   - Runs 5 attempts per item and writes JSON evidence.
-
-3. scripts/score_eval.py
-   - Computes section hit, row hit, unverified, heading quotes.
-
-Purpose:
-
-1. Compare baseline and changes objectively.
-2. Detect regressions before adopting prompt/runtime changes.
-
-## 11. How to run
-
-Run the app:
+## 4. Running
 
 ```powershell
 cd d:/confluence-scaffold/confluence
 d:/confluence-scaffold/.venv-1/Scripts/python.exe -m streamlit run streamlit_app.py
 ```
 
-Open:
+Then <http://localhost:8501>.
 
-1. http://localhost:8501
+Command-line equivalents, each with a `--stats-only` path that skips the model entirely:
 
-## 12. Known limits
+```powershell
+d:/confluence-scaffold/.venv-1/Scripts/python.exe scripts/run_report.py --period month --anchor 2026-09-15
+d:/confluence-scaffold/.venv-1/Scripts/python.exe scripts/run_strategy_advisor.py --stats-only
+d:/confluence-scaffold/.venv-1/Scripts/python.exe scripts/setup_review_poc.py
+d:/confluence-scaffold/.venv-1/Scripts/python.exe scripts/import_trade_ledger.py <xlsx> [--dry-run] [--strategy <id>]
+```
 
-1. Row-level quote precision can still vary by section complexity.
-2. Some runs may require length-cap retry escalation for specific items.
-3. Current MVP is single-page, single-flow (Setup Review only).
-4. The default two-model config does not fit an 8GB GPU. OLLAMA_RESTATE_MODEL
-   (deepseek-r1:8b) and OLLAMA_MATCH_MODEL (qwen3:8b) are about 5GB each, and
-   keep_alive pins the match model after warmup, so a run needs roughly 10GB. On an
-   RTX 4060 with a desktop already using about 2GB this terminates llama-server and can
-   take the whole Ollama service down. Point both variables at one model until the two-tier
-   split is worth the swap cost.
-5. Guards map a bad quote to NOT_COVERED, so that status means "no usable rule content was
-   returned", not strictly "the section has no such rule".
+## 5. Adding a strategy
 
-## 13. Next implementation candidates
+1. Write the rules as markdown with numbered `## n. Title` headings into
+   `data/knowledge_base/`.
+2. Add a JSON config to `data/strategies/` giving its id, name, document path, keyword and
+   routing tables, thresholds and flag sections.
+3. Restart the app. No code change.
 
-1. Persist run history in data/ for side-by-side comparisons in UI.
-2. Add inline quality flags for unverified or heading-like quote outcomes.
-3. Add operator presets for speed-first vs quality-first runtime settings.
+Keyword routing is substring matching, so a keyword must not be able to appear inside an
+unrelated word. `ob` matches "problem" and "job"; `grade` matches "A-grade".
+
+## 6. Known limits
+
+1. Row-level quote precision varies with section complexity. See
+   [eval_pipeline_and_results.md](eval_pipeline_and_results.md).
+2. Some runs need the length-cap retry for specific sections.
+3. `ENABLE_SIDE_CLASSIFICATION` is off, so the two-sided case ships unclassified until the
+   eval is re-baselined.
+4. The dead-zone rule check reports NOT CHECKABLE because session is not logged per trade.
+5. Reports cannot break down by entry model, session or zone grade: those fields are
+   populated for none of the logged trades.
+
+## 7. Related documents
+
+| Document | Covers |
+|---|---|
+| [foundations.md](foundations.md) | How the technology works, from tokens to LangGraph |
+| [precedent.md](precedent.md) | Precedent from the trade log in Setup Review |
+| [reports.md](reports.md) | The period report |
+| [trade_store_and_advisor.md](trade_store_and_advisor.md) | Schema decisions and the advisor's flags |
+| [eval_pipeline_and_results.md](eval_pipeline_and_results.md) | Quality measurement |
+| [product_plan.md](product_plan.md) | The original plan, superseded in places |

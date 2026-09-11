@@ -304,8 +304,8 @@ Not built:
    and exactly where this codebase uses it and why.
 2. [product_plan.md](docs/product_plan.md) - the original plan: vision, decisions, tech-stack
    rationale, MVP definition, roadmap and open questions.
-3. [app_documentation.md](docs/app_documentation.md) - the Streamlit app and Setup Review
-   internals.
+3. [app_documentation.md](docs/app_documentation.md) - operator reference: what each app
+   section does, every configuration variable, how to add a strategy.
 4. [reports.md](docs/reports.md) - the period report, and what watching it narrate taught
    about asking a model to rank or subtract.
 5. [precedent.md](docs/precedent.md) - why precedent is keyed to rules rather than to the
@@ -314,8 +314,6 @@ Not built:
    importer's self-check and the advisor's flags.
 7. [eval_pipeline_and_results.md](docs/eval_pipeline_and_results.md) - the eval harness and
    measured results.
-8. [setup_review_poc_last_3_days.md](docs/setup_review_poc_last_3_days.md) - how the Setup
-   Review hardening was arrived at.
 
 ---
 

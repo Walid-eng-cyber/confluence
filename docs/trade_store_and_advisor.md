@@ -2,6 +2,9 @@
 
 Covers Epic C (trade store and backfill) and Epic F (Strategy Advisor, critique mode).
 
+Trades are scoped per strategy: every figure here is computed over the selected strategy's
+own history, never pooled across methodologies.
+
 ## 1. What these are
 
 1. A SQLite store holding one row per logged trade.
@@ -21,10 +24,12 @@ never asked to recall, estimate or recompute them.
    - F1: whole-strategy statistics and rule-adherence flags. Shared, so Epic E can reuse it.
 4. app/graphs/strategy_advisor_graph.py
    - F2: the compute -> retrieve -> narrate graph.
-5. scripts/import_trade_ledger.py
-   - C2: one-off backfill from the Trade Ledger export.
-6. scripts/run_strategy_advisor.py
-   - Runner for the advisor.
+5. app/services/trade_precedent.py
+   - Precedent lookup used by Setup Review.
+6. scripts/import_trade_ledger.py
+   - C2: one-off backfill from the Trade Ledger export. Takes --strategy.
+7. scripts/run_strategy_advisor.py
+   - Runner for the advisor. The app also has an Advisor section.
 
 ## 3. Schema decisions
 
@@ -50,8 +55,10 @@ These are described only in free-text notes. They are not inferred, because gues
 would put invented data into the store that reports are supposed to be grounded in. Two
 consequences follow:
 
-1. C3's "similar" cannot mean "same zone grade + entry model" as the backlog specifies.
+1. C3's "similar" cannot mean "same zone grade + entry model" as the backlog specified.
    find_similar applies only the filters it is given, over the dimensions actually logged.
+   Setup Review's precedent lookup works around this by keying to rules rather than to
+   setup fields; see precedent.md.
 2. The dead-zone adherence check reports NOT CHECKABLE rather than clean.
 
 Both normalised and raw values are stored for daily_bias and regime. The raw strings carry
@@ -87,14 +94,21 @@ sheet in both cases, because an open trade contributes no R.
 
 ## 6. Rule-adherence flags
 
-Each flag names the strategy section that defines the rule it checks.
+Each flag names the strategy section that defines the rule it checks, and both the section
+number and the threshold come from that strategy's config rather than being fixed.
 
-1. RR_BELOW_MINIMUM (section 10): planned RR under the 3:1 intraday floor. The 2:1 scalp
-   floor cannot be applied, because the ledger does not record intraday versus scalp.
-2. SCORE_BELOW_THRESHOLD_TAKEN (section 13): taken despite scoring below 60.
-3. SIZE_EXCEEDS_SCORE (section 13): sized above what the score bucket permits.
-4. FULL_SIZE_CRITERION_2_UNMET (section 8): full size with criterion 2 unmet.
-5. DEAD_ZONE_ENTRY (section 11): NOT CHECKABLE, session is not logged.
+1. RR_BELOW_MINIMUM: planned RR under the strategy's intraday floor (3:1 for Nabil, 2:1 for
+   the ICT reference). A lower scalp floor cannot be applied, because the ledger does not
+   record intraday versus scalp.
+2. SCORE_BELOW_THRESHOLD_TAKEN: taken despite scoring below the strategy's no-trade floor
+   (60 on Nabil's 100-point scale, 6 on the ICT reference's 10-point one).
+3. SIZE_EXCEEDS_SCORE: sized above what that strategy's score bucket permits.
+4. FULL_SIZE_CRITERION_2_UNMET: full size with criterion 2 unmet.
+5. DEAD_ZONE_ENTRY: NOT CHECKABLE, session is not logged.
+
+A check runs only when the strategy both names a section for it and supplies the threshold
+it needs. The ICT reference has no criterion-2 concept, so it does not get flag 4 at all,
+rather than a flag that is vacuously clean.
 
 A flag that cannot be evaluated is reported as NOT CHECKABLE, never as clean. This mirrors
 the ERROR-is-not-NOT_COVERED rule in Setup Review: absence of evidence is not evidence of
@@ -137,4 +151,3 @@ It is advisory, not a gate, and it will flag a rounded restatement (47.6% for a 
    for 20 of 25 rows, score and criterion_2_met for 22 of 25.
 3. Segment-level mismatch mining (F3) is deliberately out of scope until trade volume
    supports it.
-4. The advisor has no UI yet. Wiring it into Streamlit is Epic G.

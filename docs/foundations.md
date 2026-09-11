@@ -442,6 +442,7 @@ judgement that could be deterministic is deterministic.**
 | To understand | Read |
 |---|---|
 | Prompting, parsing, guards, verification | `scripts/setup_review_poc.py` |
+| Section parsing (`parse_numbered_h2_sections`) and routing (`route`) | `scripts/setup_review_poc.py` |
 | Graph structure and state | `app/graphs/setup_review_graph.py` |
 | Compute-then-narrate, and the grounding check | `app/graphs/strategy_advisor_graph.py` |
 | Deterministic statistics and rule checks | `app/services/trade_stats.py` |

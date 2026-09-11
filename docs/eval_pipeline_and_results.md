@@ -241,6 +241,36 @@ What this run was for:
 1. Performance optimization test under the same scoring method.
 2. Verification that speed optimization does not silently destroy quality.
 
+### Targeted Fix Run
+
+Artifacts:
+
+1. Run JSON: data/eval/run_20260911_105820.json
+2. Score table: data/eval/score_targeted_fix_20260911_105820.txt
+3. Runtime: 1068.84s
+4. Totals:
+   - records 70
+   - section hits 70
+   - row hits 30
+   - unverified 0
+   - heading quotes 0
+
+Note the sample size changed: three high-signal items (unknown_rr, fact_swept_zone_low,
+fact_h1_pullback_a_grade_demand) now run ten attempts instead of five, so 70 records rather
+than 55. Totals are not directly comparable with the three runs above; per-item rates are.
+
+Observed effect:
+
+1. Unverified quotes reached 0, from 1-2 in the earlier runs.
+2. Row hits 30/70 (43%) against 20/55 (36%) in the dynamic-context run.
+3. Runtime rose with the larger sample.
+
+Where the remaining misses are concentrated:
+
+1. The four unknown items score 0 row hits between them. They route correctly every time and
+   return verified quotes, but not the expected row.
+2. fact_swept_zone_low is 3/10, and fact_no_choch 0/5.
+
 ## 5) Interpretation
 
 1. Section routing is stable (55/55 section hits in all runs).
@@ -311,3 +341,19 @@ Decision rule after every experiment:
    - row hits improve or hold,
    - unverified and heading quotes do not worsen,
    - runtime is acceptable for your use.
+
+## 9) Outstanding: the side-classification flag
+
+`ENABLE_SIDE_CLASSIFICATION` adds a `Side` field to the Stage 2 fact prompt so the two-sided
+case can argue each rule-matched fact. **It has been off since it was written, and none of
+the runs above measure it.**
+
+It is off precisely because it changes the prompt this harness measures. With the flag off
+the rendered prompt is byte-identical to the pre-feature baseline, which is asserted by a
+test comparing against commit a66034d.
+
+Promoting it means: run the harness with `ENABLE_SIDE_CLASSIFICATION=1`, score it, and apply
+the decision rule above against run_20260911_105820. Until that happens, the two-sided case
+ships with every rule-matched fact listed as unclassified, and says so in its own output.
+
+This is the last item standing between the MVP being built and being delivered as specified.
