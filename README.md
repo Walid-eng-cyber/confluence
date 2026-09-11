@@ -310,8 +310,9 @@ Not built:
    about asking a model to rank or subtract.
 5. [precedent.md](docs/precedent.md) - why precedent is keyed to rules rather than to the
    setup, and how an unknown becomes a warning.
-6. [retrieval.md](docs/retrieval.md) - the reference corpus, why there is no Chroma, and a
-   measured case of dense retrieval missing on vocabulary.
+6. [retrieval.md](docs/retrieval.md) - **Epic J in full**: the reference corpus, chunking,
+   embedding and search, why there is no Chroma, a measured case of dense retrieval missing
+   on vocabulary, and how to build what remains.
 7. [trade_store_and_advisor.md](docs/trade_store_and_advisor.md) - schema decisions, the
    importer's self-check and the advisor's flags.
 8. [eval_pipeline_and_results.md](docs/eval_pipeline_and_results.md) - the eval harness and
