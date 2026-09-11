@@ -51,6 +51,7 @@ flowchart TB
 
     SRG -->|"deterministic routing,<br/>then quote verification"| KB
     SRG --> LLM
+    SRG -->|"precedent: rules you have<br/>broken before"| DB
 
     ADV --> STATS
     STATS --> DB
@@ -122,6 +123,21 @@ Side classification is gated behind `ENABLE_SIDE_CLASSIFICATION`, default off, b
 enabling it changes the match prompt the eval harness measures. With the flag off the
 rendered prompt is byte-identical to the committed baseline, so existing eval numbers stay
 comparable.
+
+### Precedent from your own record
+
+The case closes with what happened the last times each rule was broken, pulled from the
+trade log with no model call.
+
+It is keyed to **rules, not to the setup's own fields**, because Setup Review never learns
+this setup's RR, score or session - Stage 1 always classifies those as unknowns. It cannot
+say this setup breaks the RR rule; it can say what happened the six times you took sub-3R
+trades. That is what turns an unknown into a warning.
+
+The supporting side is called "taken by the book" rather than "precedent in favour":
+following every rule does not make a trade a winner, and on the current log the one clean
+XAUUSD long lost. A group under five resolved trades says so instead of showing a win rate.
+See [precedent.md](docs/precedent.md).
 
 ## 3. Trade store
 
@@ -260,7 +276,11 @@ Built and working:
 2. Trade store, with the ledger backfilled and validated against the workbook's own totals.
 3. Strategy Advisor, critique mode, with computed stats and rule flags.
 4. Reports: daily, weekly and monthly over the trade log.
-5. Streamlit frontend with all five sections.
+5. Precedent from the trade log inside Setup Review.
+6. Multiple strategies, each with its own routing, thresholds and trade history.
+7. Streamlit frontend with all five sections.
+
+**The MVP as defined in [product_plan.md](docs/product_plan.md) section 6 is complete.**
 
 Not built:
 
@@ -288,11 +308,13 @@ Not built:
    internals.
 4. [reports.md](docs/reports.md) - the period report, and what watching it narrate taught
    about asking a model to rank or subtract.
-5. [trade_store_and_advisor.md](docs/trade_store_and_advisor.md) - schema decisions, the
+5. [precedent.md](docs/precedent.md) - why precedent is keyed to rules rather than to the
+   setup, and how an unknown becomes a warning.
+6. [trade_store_and_advisor.md](docs/trade_store_and_advisor.md) - schema decisions, the
    importer's self-check and the advisor's flags.
-6. [eval_pipeline_and_results.md](docs/eval_pipeline_and_results.md) - the eval harness and
+7. [eval_pipeline_and_results.md](docs/eval_pipeline_and_results.md) - the eval harness and
    measured results.
-7. [setup_review_poc_last_3_days.md](docs/setup_review_poc_last_3_days.md) - how the Setup
+8. [setup_review_poc_last_3_days.md](docs/setup_review_poc_last_3_days.md) - how the Setup
    Review hardening was arrived at.
 
 ---
