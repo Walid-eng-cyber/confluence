@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 
 from app.models.trade import OUTCOME_BREAKEVEN, OUTCOME_LOSS, OUTCOME_OPEN, OUTCOME_WIN, Trade
 
-# README section 4.7b: a segment with fewer trades than this is reported as inconclusive
+# docs/product_plan.md section 4.7b: a segment with fewer trades than this is inconclusive
 # rather than acted on, so the advisor cannot overfit a rule change to a handful of trades.
 MIN_SEGMENT_TRADES = 10
 

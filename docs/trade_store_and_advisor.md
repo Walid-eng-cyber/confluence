@@ -28,7 +28,7 @@ never asked to recall, estimate or recompute them.
 
 ## 3. Schema decisions
 
-The Trade Ledger export disagrees with the schema proposed in README section 4.2, so the
+The Trade Ledger export disagrees with the schema proposed in product_plan.md section 4.2, so the
 table was built against the real data. This resolves open question section 8.2.
 
 Present in the export and added to the schema:
@@ -102,7 +102,7 @@ compliance.
 
 ## 7. Small-sample honesty
 
-Per README section 4.7b, any segment with fewer than MIN_SEGMENT_TRADES (10) resolved trades
+Per product_plan.md section 4.7b, any segment with fewer than MIN_SEGMENT_TRADES (10) resolved trades
 is marked INCONCLUSIVE and the narrator is instructed to say so rather than draw a
 conclusion. At present every score bucket and the criterion-2-unmet segment fall under that
 threshold.
