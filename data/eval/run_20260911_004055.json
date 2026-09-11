@@ -1,0 +1,882 @@
+{
+  "created_at": "2026-09-11T00:40:55.832901",
+  "attempts_per_item": 5,
+  "item_count": 11,
+  "record_count": 55,
+  "runtime_sec": 669.7,
+  "config": {
+    "match_model": "qwen3:8b",
+    "num_ctx_match": 2048,
+    "num_predict": 768,
+    "num_predict_retry": 1536,
+    "timeout_sec": 60.0,
+    "retries": 1
+  },
+  "records": [
+    {
+      "item_id": "fact_xauusd",
+      "kind": "FACT",
+      "item_text": "XAUUSD",
+      "attempt": 1,
+      "expected_section": null,
+      "expected_quote": null,
+      "routed_sections": [],
+      "overall_status": "NOT_ROUTED",
+      "returned_section": null,
+      "returned_quote": "N/A",
+      "status": "NOT_ROUTED",
+      "verified": true
+    },
+    {
+      "item_id": "fact_xauusd",
+      "kind": "FACT",
+      "item_text": "XAUUSD",
+      "attempt": 2,
+      "expected_section": null,
+      "expected_quote": null,
+      "routed_sections": [],
+      "overall_status": "NOT_ROUTED",
+      "returned_section": null,
+      "returned_quote": "N/A",
+      "status": "NOT_ROUTED",
+      "verified": true
+    },
+    {
+      "item_id": "fact_xauusd",
+      "kind": "FACT",
+      "item_text": "XAUUSD",
+      "attempt": 3,
+      "expected_section": null,
+      "expected_quote": null,
+      "routed_sections": [],
+      "overall_status": "NOT_ROUTED",
+      "returned_section": null,
+      "returned_quote": "N/A",
+      "status": "NOT_ROUTED",
+      "verified": true
+    },
+    {
+      "item_id": "fact_xauusd",
+      "kind": "FACT",
+      "item_text": "XAUUSD",
+      "attempt": 4,
+      "expected_section": null,
+      "expected_quote": null,
+      "routed_sections": [],
+      "overall_status": "NOT_ROUTED",
+      "returned_section": null,
+      "returned_quote": "N/A",
+      "status": "NOT_ROUTED",
+      "verified": true
+    },
+    {
+      "item_id": "fact_xauusd",
+      "kind": "FACT",
+      "item_text": "XAUUSD",
+      "attempt": 5,
+      "expected_section": null,
+      "expected_quote": null,
+      "routed_sections": [],
+      "overall_status": "NOT_ROUTED",
+      "returned_section": null,
+      "returned_quote": "N/A",
+      "status": "NOT_ROUTED",
+      "verified": true
+    },
+    {
+      "item_id": "fact_daily_bias_bullish",
+      "kind": "FACT",
+      "item_text": "Daily bias bullish",
+      "attempt": 1,
+      "expected_section": "3",
+      "expected_quote": "Higher highs + higher lows = bullish",
+      "routed_sections": [
+        "3"
+      ],
+      "overall_status": "OK",
+      "returned_section": "3",
+      "returned_quote": "Higher highs + higher lows = bullish",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_daily_bias_bullish",
+      "kind": "FACT",
+      "item_text": "Daily bias bullish",
+      "attempt": 2,
+      "expected_section": "3",
+      "expected_quote": "Higher highs + higher lows = bullish",
+      "routed_sections": [
+        "3"
+      ],
+      "overall_status": "OK",
+      "returned_section": "3",
+      "returned_quote": "Higher highs + higher lows = bullish",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_daily_bias_bullish",
+      "kind": "FACT",
+      "item_text": "Daily bias bullish",
+      "attempt": 3,
+      "expected_section": "3",
+      "expected_quote": "Higher highs + higher lows = bullish",
+      "routed_sections": [
+        "3"
+      ],
+      "overall_status": "OK",
+      "returned_section": "3",
+      "returned_quote": "Higher highs + higher lows = bullish",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_daily_bias_bullish",
+      "kind": "FACT",
+      "item_text": "Daily bias bullish",
+      "attempt": 4,
+      "expected_section": "3",
+      "expected_quote": "Higher highs + higher lows = bullish",
+      "routed_sections": [
+        "3"
+      ],
+      "overall_status": "OK",
+      "returned_section": "3",
+      "returned_quote": "Higher highs + higher lows = bullish",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_daily_bias_bullish",
+      "kind": "FACT",
+      "item_text": "Daily bias bullish",
+      "attempt": 5,
+      "expected_section": "3",
+      "expected_quote": "Higher highs + higher lows = bullish",
+      "routed_sections": [
+        "3"
+      ],
+      "overall_status": "OK",
+      "returned_section": "3",
+      "returned_quote": "Higher highs + higher lows = bullish",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_hh_hl_intact",
+      "kind": "FACT",
+      "item_text": "Higher highs and higher lows intact",
+      "attempt": 1,
+      "expected_section": "3",
+      "expected_quote": "Higher highs + higher lows = bullish",
+      "routed_sections": [
+        "3"
+      ],
+      "overall_status": "OK",
+      "returned_section": "3",
+      "returned_quote": "Higher highs + higher lows = bullish",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_hh_hl_intact",
+      "kind": "FACT",
+      "item_text": "Higher highs and higher lows intact",
+      "attempt": 2,
+      "expected_section": "3",
+      "expected_quote": "Higher highs + higher lows = bullish",
+      "routed_sections": [
+        "3"
+      ],
+      "overall_status": "OK",
+      "returned_section": "3",
+      "returned_quote": "- Higher highs + higher lows = bullish",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_hh_hl_intact",
+      "kind": "FACT",
+      "item_text": "Higher highs and higher lows intact",
+      "attempt": 3,
+      "expected_section": "3",
+      "expected_quote": "Higher highs + higher lows = bullish",
+      "routed_sections": [
+        "3"
+      ],
+      "overall_status": "OK",
+      "returned_section": "3",
+      "returned_quote": "Higher highs + higher lows = bullish",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_hh_hl_intact",
+      "kind": "FACT",
+      "item_text": "Higher highs and higher lows intact",
+      "attempt": 4,
+      "expected_section": "3",
+      "expected_quote": "Higher highs + higher lows = bullish",
+      "routed_sections": [
+        "3"
+      ],
+      "overall_status": "OK",
+      "returned_section": "3",
+      "returned_quote": "Higher highs + higher lows = bullish",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_hh_hl_intact",
+      "kind": "FACT",
+      "item_text": "Higher highs and higher lows intact",
+      "attempt": 5,
+      "expected_section": "3",
+      "expected_quote": "Higher highs + higher lows = bullish",
+      "routed_sections": [
+        "3"
+      ],
+      "overall_status": "OK",
+      "returned_section": "3",
+      "returned_quote": "Higher highs + higher lows = bullish",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_h1_pullback_a_grade_demand",
+      "kind": "FACT",
+      "item_text": "H1 pulled back into an A-grade demand zone",
+      "attempt": 1,
+      "expected_section": "6",
+      "expected_quote": "| **A — Impulse-origin** | The base of the leg that *created* the move | **Yes** |",
+      "routed_sections": [
+        "6"
+      ],
+      "overall_status": "OK",
+      "returned_section": "6",
+      "returned_quote": "A — Impulse-origin | The base of the leg that *created* the move | Yes",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_h1_pullback_a_grade_demand",
+      "kind": "FACT",
+      "item_text": "H1 pulled back into an A-grade demand zone",
+      "attempt": 2,
+      "expected_section": "6",
+      "expected_quote": "| **A — Impulse-origin** | The base of the leg that *created* the move | **Yes** |",
+      "routed_sections": [
+        "6"
+      ],
+      "overall_status": "OK",
+      "returned_section": "6",
+      "returned_quote": "A — Impulse-origin | The base of the leg that *created* the move | Yes",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_h1_pullback_a_grade_demand",
+      "kind": "FACT",
+      "item_text": "H1 pulled back into an A-grade demand zone",
+      "attempt": 3,
+      "expected_section": "6",
+      "expected_quote": "| **A — Impulse-origin** | The base of the leg that *created* the move | **Yes** |",
+      "routed_sections": [
+        "6"
+      ],
+      "overall_status": "OK",
+      "returned_section": "6",
+      "returned_quote": "A — Impulse-origin | The base of the leg that *created* the move | Yes",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_h1_pullback_a_grade_demand",
+      "kind": "FACT",
+      "item_text": "H1 pulled back into an A-grade demand zone",
+      "attempt": 4,
+      "expected_section": "6",
+      "expected_quote": "| **A — Impulse-origin** | The base of the leg that *created* the move | **Yes** |",
+      "routed_sections": [
+        "6"
+      ],
+      "overall_status": "OK",
+      "returned_section": "6",
+      "returned_quote": "The base of the leg that *created* the move",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_h1_pullback_a_grade_demand",
+      "kind": "FACT",
+      "item_text": "H1 pulled back into an A-grade demand zone",
+      "attempt": 5,
+      "expected_section": "6",
+      "expected_quote": "| **A — Impulse-origin** | The base of the leg that *created* the move | **Yes** |",
+      "routed_sections": [
+        "6"
+      ],
+      "overall_status": "OK",
+      "returned_section": "6",
+      "returned_quote": "A — Impulse-origin | The base of the leg that *created* the move | Yes",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_swept_zone_low",
+      "kind": "FACT",
+      "item_text": "Price just swept the zone's low",
+      "attempt": 1,
+      "expected_section": "15",
+      "expected_quote": "| Price closes back inside | SWEEP | Original thesis remains alive |",
+      "routed_sections": [
+        "15"
+      ],
+      "overall_status": "ERROR",
+      "returned_section": "15",
+      "returned_quote": "N/A",
+      "status": "ERROR",
+      "verified": true
+    },
+    {
+      "item_id": "fact_swept_zone_low",
+      "kind": "FACT",
+      "item_text": "Price just swept the zone's low",
+      "attempt": 2,
+      "expected_section": "15",
+      "expected_quote": "| Price closes back inside | SWEEP | Original thesis remains alive |",
+      "routed_sections": [
+        "15"
+      ],
+      "overall_status": "OK",
+      "returned_section": "15",
+      "returned_quote": "Sweep in Asia, price never returned",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_swept_zone_low",
+      "kind": "FACT",
+      "item_text": "Price just swept the zone's low",
+      "attempt": 3,
+      "expected_section": "15",
+      "expected_quote": "| Price closes back inside | SWEEP | Original thesis remains alive |",
+      "routed_sections": [
+        "15"
+      ],
+      "overall_status": "OK",
+      "returned_section": "15",
+      "returned_quote": "Sweep in Asia, price never returned",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_swept_zone_low",
+      "kind": "FACT",
+      "item_text": "Price just swept the zone's low",
+      "attempt": 4,
+      "expected_section": "15",
+      "expected_quote": "| Price closes back inside | SWEEP | Original thesis remains alive |",
+      "routed_sections": [
+        "15"
+      ],
+      "overall_status": "OK",
+      "returned_section": "15",
+      "returned_quote": "Sweep in Asia, price never returned",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_swept_zone_low",
+      "kind": "FACT",
+      "item_text": "Price just swept the zone's low",
+      "attempt": 5,
+      "expected_section": "15",
+      "expected_quote": "| Price closes back inside | SWEEP | Original thesis remains alive |",
+      "routed_sections": [
+        "15"
+      ],
+      "overall_status": "OK",
+      "returned_section": "15",
+      "returned_quote": "Sweep in Asia, price never returned",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_reacting_upward",
+      "kind": "FACT",
+      "item_text": "Price is starting to react upward",
+      "attempt": 1,
+      "expected_section": null,
+      "expected_quote": null,
+      "routed_sections": [],
+      "overall_status": "NOT_ROUTED",
+      "returned_section": null,
+      "returned_quote": "N/A",
+      "status": "NOT_ROUTED",
+      "verified": true
+    },
+    {
+      "item_id": "fact_reacting_upward",
+      "kind": "FACT",
+      "item_text": "Price is starting to react upward",
+      "attempt": 2,
+      "expected_section": null,
+      "expected_quote": null,
+      "routed_sections": [],
+      "overall_status": "NOT_ROUTED",
+      "returned_section": null,
+      "returned_quote": "N/A",
+      "status": "NOT_ROUTED",
+      "verified": true
+    },
+    {
+      "item_id": "fact_reacting_upward",
+      "kind": "FACT",
+      "item_text": "Price is starting to react upward",
+      "attempt": 3,
+      "expected_section": null,
+      "expected_quote": null,
+      "routed_sections": [],
+      "overall_status": "NOT_ROUTED",
+      "returned_section": null,
+      "returned_quote": "N/A",
+      "status": "NOT_ROUTED",
+      "verified": true
+    },
+    {
+      "item_id": "fact_reacting_upward",
+      "kind": "FACT",
+      "item_text": "Price is starting to react upward",
+      "attempt": 4,
+      "expected_section": null,
+      "expected_quote": null,
+      "routed_sections": [],
+      "overall_status": "NOT_ROUTED",
+      "returned_section": null,
+      "returned_quote": "N/A",
+      "status": "NOT_ROUTED",
+      "verified": true
+    },
+    {
+      "item_id": "fact_reacting_upward",
+      "kind": "FACT",
+      "item_text": "Price is starting to react upward",
+      "attempt": 5,
+      "expected_section": null,
+      "expected_quote": null,
+      "routed_sections": [],
+      "overall_status": "NOT_ROUTED",
+      "returned_section": null,
+      "returned_quote": "N/A",
+      "status": "NOT_ROUTED",
+      "verified": true
+    },
+    {
+      "item_id": "fact_no_choch",
+      "kind": "FACT",
+      "item_text": "No CHoCH confirmed yet",
+      "attempt": 1,
+      "expected_section": "8",
+      "expected_quote": "| Neither | No trade |",
+      "routed_sections": [
+        "8"
+      ],
+      "overall_status": "OK",
+      "returned_section": "8",
+      "returned_quote": "M15 CHoCH only, H1 still opposing | Quarter to half size. Log criterion 2 = N.",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_no_choch",
+      "kind": "FACT",
+      "item_text": "No CHoCH confirmed yet",
+      "attempt": 2,
+      "expected_section": "8",
+      "expected_quote": "| Neither | No trade |",
+      "routed_sections": [
+        "8"
+      ],
+      "overall_status": "OK",
+      "returned_section": "8",
+      "returned_quote": "M15 CHoCH only, H1 still opposing | Quarter to half size. Log criterion 2 = N.",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_no_choch",
+      "kind": "FACT",
+      "item_text": "No CHoCH confirmed yet",
+      "attempt": 3,
+      "expected_section": "8",
+      "expected_quote": "| Neither | No trade |",
+      "routed_sections": [
+        "8"
+      ],
+      "overall_status": "OK",
+      "returned_section": "8",
+      "returned_quote": "M15 CHoCH only, H1 still opposing | Quarter to half size. Log criterion 2 = N.",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_no_choch",
+      "kind": "FACT",
+      "item_text": "No CHoCH confirmed yet",
+      "attempt": 4,
+      "expected_section": "8",
+      "expected_quote": "| Neither | No trade |",
+      "routed_sections": [
+        "8"
+      ],
+      "overall_status": "OK",
+      "returned_section": "8",
+      "returned_quote": "M15 CHoCH only, H1 still opposing | Quarter to half size. Log criterion 2 = N.",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "fact_no_choch",
+      "kind": "FACT",
+      "item_text": "No CHoCH confirmed yet",
+      "attempt": 5,
+      "expected_section": "8",
+      "expected_quote": "| Neither | No trade |",
+      "routed_sections": [
+        "8"
+      ],
+      "overall_status": "OK",
+      "returned_section": "8",
+      "returned_quote": "M15 CHoCH only, H1 still opposing | Quarter to half size. Log criterion 2 = N.",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_rr",
+      "kind": "UNKNOWN",
+      "item_text": "Risk-reward ratio (RR)",
+      "attempt": 1,
+      "expected_section": "10",
+      "expected_quote": "| If RR < minimum | Move the entry, never the stop |",
+      "routed_sections": [
+        "10"
+      ],
+      "overall_status": "OK",
+      "returned_section": "10",
+      "returned_quote": "## 10. Risk and management",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_rr",
+      "kind": "UNKNOWN",
+      "item_text": "Risk-reward ratio (RR)",
+      "attempt": 2,
+      "expected_section": "10",
+      "expected_quote": "| If RR < minimum | Move the entry, never the stop |",
+      "routed_sections": [
+        "10"
+      ],
+      "overall_status": "OK",
+      "returned_section": "10",
+      "returned_quote": "## 10. Risk and management",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_rr",
+      "kind": "UNKNOWN",
+      "item_text": "Risk-reward ratio (RR)",
+      "attempt": 3,
+      "expected_section": "10",
+      "expected_quote": "| If RR < minimum | Move the entry, never the stop |",
+      "routed_sections": [
+        "10"
+      ],
+      "overall_status": "ERROR",
+      "returned_section": "10",
+      "returned_quote": "N/A",
+      "status": "ERROR",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_rr",
+      "kind": "UNKNOWN",
+      "item_text": "Risk-reward ratio (RR)",
+      "attempt": 4,
+      "expected_section": "10",
+      "expected_quote": "| If RR < minimum | Move the entry, never the stop |",
+      "routed_sections": [
+        "10"
+      ],
+      "overall_status": "OK",
+      "returned_section": "10",
+      "returned_quote": "| Rule | Value |\\n /think",
+      "status": "OK",
+      "verified": false
+    },
+    {
+      "item_id": "unknown_rr",
+      "kind": "UNKNOWN",
+      "item_text": "Risk-reward ratio (RR)",
+      "attempt": 5,
+      "expected_section": "10",
+      "expected_quote": "| If RR < minimum | Move the entry, never the stop |",
+      "routed_sections": [
+        "10"
+      ],
+      "overall_status": "ERROR",
+      "returned_section": "10",
+      "returned_quote": "N/A",
+      "status": "ERROR",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_pool_taken",
+      "kind": "UNKNOWN",
+      "item_text": "Whether a specific liquidity pool has been taken",
+      "attempt": 1,
+      "expected_section": "5",
+      "expected_quote": "| Wide session range, untouched, confluent with an HTF level | **Blocking — wait** |",
+      "routed_sections": [
+        "4",
+        "5"
+      ],
+      "overall_status": "OK",
+      "returned_section": "5",
+      "returned_quote": "Not every untaken pool blocks a trade",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_pool_taken",
+      "kind": "UNKNOWN",
+      "item_text": "Whether a specific liquidity pool has been taken",
+      "attempt": 2,
+      "expected_section": "5",
+      "expected_quote": "| Wide session range, untouched, confluent with an HTF level | **Blocking — wait** |",
+      "routed_sections": [
+        "4",
+        "5"
+      ],
+      "overall_status": "OK",
+      "returned_section": "5",
+      "returned_quote": "Not every untaken pool blocks a trade:",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_pool_taken",
+      "kind": "UNKNOWN",
+      "item_text": "Whether a specific liquidity pool has been taken",
+      "attempt": 3,
+      "expected_section": "5",
+      "expected_quote": "| Wide session range, untouched, confluent with an HTF level | **Blocking — wait** |",
+      "routed_sections": [
+        "4",
+        "5"
+      ],
+      "overall_status": "OK",
+      "returned_section": "5",
+      "returned_quote": "Not every untaken pool blocks a trade:",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_pool_taken",
+      "kind": "UNKNOWN",
+      "item_text": "Whether a specific liquidity pool has been taken",
+      "attempt": 4,
+      "expected_section": "5",
+      "expected_quote": "| Wide session range, untouched, confluent with an HTF level | **Blocking — wait** |",
+      "routed_sections": [
+        "4",
+        "5"
+      ],
+      "overall_status": "OK",
+      "returned_section": "5",
+      "returned_quote": "Not every untaken pool blocks a trade:",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_pool_taken",
+      "kind": "UNKNOWN",
+      "item_text": "Whether a specific liquidity pool has been taken",
+      "attempt": 5,
+      "expected_section": "5",
+      "expected_quote": "| Wide session range, untouched, confluent with an HTF level | **Blocking — wait** |",
+      "routed_sections": [
+        "4",
+        "5"
+      ],
+      "overall_status": "OK",
+      "returned_section": "5",
+      "returned_quote": "Not every untaken pool blocks a trade:",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_session_timing",
+      "kind": "UNKNOWN",
+      "item_text": "Session timing",
+      "attempt": 1,
+      "expected_section": "11",
+      "expected_quote": "Mark Asia H/L **including wicks**, at the Tokyo close, two hours before London.",
+      "routed_sections": [
+        "11"
+      ],
+      "overall_status": "OK",
+      "returned_section": "11",
+      "returned_quote": "Summer (CEST, UTC+2)",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_session_timing",
+      "kind": "UNKNOWN",
+      "item_text": "Session timing",
+      "attempt": 2,
+      "expected_section": "11",
+      "expected_quote": "Mark Asia H/L **including wicks**, at the Tokyo close, two hours before London.",
+      "routed_sections": [
+        "11"
+      ],
+      "overall_status": "OK",
+      "returned_section": "11",
+      "returned_quote": "Summer (CEST, UTC+2)",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_session_timing",
+      "kind": "UNKNOWN",
+      "item_text": "Session timing",
+      "attempt": 3,
+      "expected_section": "11",
+      "expected_quote": "Mark Asia H/L **including wicks**, at the Tokyo close, two hours before London.",
+      "routed_sections": [
+        "11"
+      ],
+      "overall_status": "OK",
+      "returned_section": "11",
+      "returned_quote": "Summer (CEST, UTC+2)",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_session_timing",
+      "kind": "UNKNOWN",
+      "item_text": "Session timing",
+      "attempt": 4,
+      "expected_section": "11",
+      "expected_quote": "Mark Asia H/L **including wicks**, at the Tokyo close, two hours before London.",
+      "routed_sections": [
+        "11"
+      ],
+      "overall_status": "OK",
+      "returned_section": "11",
+      "returned_quote": "### Summer (CEST, UTC+2)",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_session_timing",
+      "kind": "UNKNOWN",
+      "item_text": "Session timing",
+      "attempt": 5,
+      "expected_section": "11",
+      "expected_quote": "Mark Asia H/L **including wicks**, at the Tokyo close, two hours before London.",
+      "routed_sections": [
+        "11"
+      ],
+      "overall_status": "OK",
+      "returned_section": "11",
+      "returned_quote": "Summer (CEST, UTC+2)",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_news_risk",
+      "kind": "UNKNOWN",
+      "item_text": "News risk",
+      "attempt": 1,
+      "expected_section": "14",
+      "expected_quote": "| 9 | Tier 1 news within 2 hours | No stop survives a release — 02.07 ran $58 past |",
+      "routed_sections": [
+        "14"
+      ],
+      "overall_status": "OK",
+      "returned_section": "14",
+      "returned_quote": "Tier 1 news within 2 hours",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_news_risk",
+      "kind": "UNKNOWN",
+      "item_text": "News risk",
+      "attempt": 2,
+      "expected_section": "14",
+      "expected_quote": "| 9 | Tier 1 news within 2 hours | No stop survives a release — 02.07 ran $58 past |",
+      "routed_sections": [
+        "14"
+      ],
+      "overall_status": "ERROR",
+      "returned_section": "14",
+      "returned_quote": "N/A",
+      "status": "ERROR",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_news_risk",
+      "kind": "UNKNOWN",
+      "item_text": "News risk",
+      "attempt": 3,
+      "expected_section": "14",
+      "expected_quote": "| 9 | Tier 1 news within 2 hours | No stop survives a release — 02.07 ran $58 past |",
+      "routed_sections": [
+        "14"
+      ],
+      "overall_status": "OK",
+      "returned_section": "14",
+      "returned_quote": "Tier 1 news within 2 hours | No stop survives a release — 02.07 ran $58 past",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_news_risk",
+      "kind": "UNKNOWN",
+      "item_text": "News risk",
+      "attempt": 4,
+      "expected_section": "14",
+      "expected_quote": "| 9 | Tier 1 news within 2 hours | No stop survives a release — 02.07 ran $58 past |",
+      "routed_sections": [
+        "14"
+      ],
+      "overall_status": "OK",
+      "returned_section": "14",
+      "returned_quote": "Tier 1 news within 2 hours | No stop survives a release — 02.07 ran $58 past",
+      "status": "OK",
+      "verified": true
+    },
+    {
+      "item_id": "unknown_news_risk",
+      "kind": "UNKNOWN",
+      "item_text": "News risk",
+      "attempt": 5,
+      "expected_section": "14",
+      "expected_quote": "| 9 | Tier 1 news within 2 hours | No stop survives a release — 02.07 ran $58 past |",
+      "routed_sections": [
+        "14"
+      ],
+      "overall_status": "OK",
+      "returned_section": "14",
+      "returned_quote": "Tier 1 news within 2 hours | No stop survives a release — 02.07 ran $58 past",
+      "status": "OK",
+      "verified": true
+    }
+  ]
+}

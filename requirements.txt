@@ -22,3 +22,6 @@ chromadb==0.5.23
 # Data / config
 pydantic==2.10.4
 python-dotenv==1.0.1
+
+# Frontend MVP
+streamlit==1.39.0

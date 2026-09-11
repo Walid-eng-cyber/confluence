@@ -1,0 +1,15 @@
+item | section hit | row hit | unverified | heading quotes
+----------------------------------------------------------
+fact_xauusd | section hit 5/5 | row hit 5/5 | unverified 0 | heading quotes 0
+fact_daily_bias_bullish | section hit 5/5 | row hit 5/5 | unverified 0 | heading quotes 0
+fact_hh_hl_intact | section hit 5/5 | row hit 5/5 | unverified 0 | heading quotes 0
+fact_h1_pullback_a_grade_demand | section hit 5/5 | row hit 1/5 | unverified 0 | heading quotes 0
+fact_swept_zone_low | section hit 5/5 | row hit 0/5 | unverified 0 | heading quotes 0
+fact_reacting_upward | section hit 5/5 | row hit 5/5 | unverified 0 | heading quotes 0
+fact_no_choch | section hit 5/5 | row hit 5/5 | unverified 0 | heading quotes 0
+unknown_rr | section hit 5/5 | row hit 0/5 | unverified 2 | heading quotes 0
+unknown_pool_taken | section hit 5/5 | row hit 0/5 | unverified 0 | heading quotes 0
+unknown_session_timing | section hit 5/5 | row hit 2/5 | unverified 0 | heading quotes 0
+unknown_news_risk | section hit 5/5 | row hit 5/5 | unverified 0 | heading quotes 0
+
+totals | records 55 | section hits 55 | row hits 33 | unverified 2 | heading quotes 0

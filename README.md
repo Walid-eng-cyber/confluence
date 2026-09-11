@@ -2,6 +2,28 @@
 
 RAG + LangGraph trading system.
 
+## Recent implementation documentation
+
+- Setup Review PoC (last 3 days): [docs/setup_review_poc_last_3_days.md](docs/setup_review_poc_last_3_days.md)
+- Eval pipeline and measured results: [docs/eval_pipeline_and_results.md](docs/eval_pipeline_and_results.md)
+- APP documentation: [docs/app_documentation.md](docs/app_documentation.md)
+
+## Streamlit MVP
+
+Run the frontend MVP:
+
+```powershell
+cd d:/confluence-scaffold/confluence
+d:/confluence-scaffold/.venv-1/Scripts/python.exe -m streamlit run streamlit_app.py
+```
+
+What it does:
+
+- Takes a setup description from the UI.
+- Runs the existing routed Setup Review pipeline.
+- Shows Stage 1 raw output, Stage 2 per-item status/output, and Stage 3 verdict.
+- Displays summary status counts and runtime.
+
 Personal AI trading assistant that grounds every recommendation in your own written strategy rules (Nabil v3) and your own trade history, and turns your trade log into daily / weekly / monthly reports. No code yet — this document is the breakdown we agreed on before writing a single file.
 
 ## 1. What this actually is
