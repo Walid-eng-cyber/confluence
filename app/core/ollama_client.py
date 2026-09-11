@@ -7,6 +7,34 @@ from dataclasses import dataclass, field
 from typing import Any, Sequence
 
 
+def embed(
+    texts: Sequence[str],
+    model: str,
+    base_url: str,
+    timeout: float = 300.0,
+) -> list[list[float]]:
+    """Embed texts via Ollama's /api/embed. Returns one vector per input, in order."""
+    request = urllib.request.Request(
+        f"{base_url.rstrip('/')}/api/embed",
+        data=json.dumps({"model": model, "input": list(texts)}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            body = json.load(response)
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", "replace")[:300]
+        raise RuntimeError(f"ollama embed code:{exc.code} {detail}") from exc
+
+    vectors = body.get("embeddings")
+    if not vectors or len(vectors) != len(texts):
+        raise RuntimeError(
+            f"embed returned {len(vectors or [])} vectors for {len(texts)} inputs"
+        )
+    return vectors
+
+
 @dataclass
 class OllamaResponse:
     """The two attributes the pipeline reads off a model response."""

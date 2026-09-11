@@ -15,9 +15,11 @@ langchain-community==0.3.14
 langchain-ollama==0.2.2
 ollama==0.4.5
 
-# Vector store
-langchain-chroma==0.2.0
-chromadb==0.5.23
+# Vector store: not required. The reference corpus stores float32 vectors in SQLite and
+# compares them in process - see docs/retrieval.md section 2. chromadb 0.5.23 also cannot
+# import in this environment (protobuf gencode/runtime conflict via opentelemetry), and at a
+# few hundred chunks an ANN index approximates something already instant. Re-add when the
+# corpus reaches the low thousands.
 
 # Data / config
 pydantic==2.10.4

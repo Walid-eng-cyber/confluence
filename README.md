@@ -310,9 +310,11 @@ Not built:
    about asking a model to rank or subtract.
 5. [precedent.md](docs/precedent.md) - why precedent is keyed to rules rather than to the
    setup, and how an unknown becomes a warning.
-6. [trade_store_and_advisor.md](docs/trade_store_and_advisor.md) - schema decisions, the
+6. [retrieval.md](docs/retrieval.md) - the reference corpus, why there is no Chroma, and a
+   measured case of dense retrieval missing on vocabulary.
+7. [trade_store_and_advisor.md](docs/trade_store_and_advisor.md) - schema decisions, the
    importer's self-check and the advisor's flags.
-7. [eval_pipeline_and_results.md](docs/eval_pipeline_and_results.md) - the eval harness and
+8. [eval_pipeline_and_results.md](docs/eval_pipeline_and_results.md) - the eval harness and
    measured results.
 
 ---
