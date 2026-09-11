@@ -10,6 +10,8 @@ from langgraph.graph import END, START, StateGraph
 from app.core.pipeline_loader import load_pipeline_module
 from app.models.strategy import StrategyConfig
 from app.services.strategy_registry import get_strategy
+from app.services.trade_precedent import build_precedents, format_precedents
+from app.services.trade_store import connect, fetch_by_date_range
 
 
 class SetupReviewState(TypedDict, total=False):
@@ -22,6 +24,7 @@ class SetupReviewState(TypedDict, total=False):
     routes: dict[str, list[str]]
     fact_results: list[tuple[str, str, str]]
     unknown_results: list[tuple[str, str, str]]
+    precedent: str
     stage3_verdict: str
     two_sided_case: str
 
@@ -159,24 +162,43 @@ def build_setup_review_graph(runtime: SetupReviewRuntime):
 
         return {"fact_results": fact_results, "unknown_results": unknown_results}
 
+    def precedent_node(state: SetupReviewState) -> SetupReviewState:
+        """Look up what happened the last times this rule was broken. No model call."""
+        config = config_for(state)
+        conn = connect()
+        try:
+            history = fetch_by_date_range(
+                conn, "1900-01-01", "2999-12-31", strategy_id=config.id
+            )
+        finally:
+            conn.close()
+
+        setup_text = "\n".join([state["setup_description"], *state.get("facts", [])])
+        cautionary, supporting = build_precedents(history, config, setup_text)
+        return {"precedent": format_precedents(cautionary, supporting)}
+
     def recommend_node(state: SetupReviewState) -> SetupReviewState:
         fact_results = state["fact_results"]
         unknown_results = state["unknown_results"]
         return {
             "stage3_verdict": poc.build_stage3_verdict(fact_results, unknown_results),
-            "two_sided_case": poc.build_two_sided_case(fact_results, unknown_results),
+            "two_sided_case": poc.build_two_sided_case(
+                fact_results, unknown_results, state.get("precedent", "")
+            ),
         }
 
     graph = StateGraph(SetupReviewState)
     graph.add_node("parse", parse_node)
     graph.add_node("retrieve", retrieve_node)
     graph.add_node("validate", validate_node)
+    graph.add_node("recall", precedent_node)
     graph.add_node("recommend", recommend_node)
 
     graph.add_edge(START, "parse")
     graph.add_edge("parse", "retrieve")
     graph.add_edge("retrieve", "validate")
-    graph.add_edge("validate", "recommend")
+    graph.add_edge("validate", "recall")
+    graph.add_edge("recall", "recommend")
     graph.add_edge("recommend", END)
 
     return graph.compile()

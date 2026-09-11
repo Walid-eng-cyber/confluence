@@ -46,6 +46,7 @@ class RuleFlag:
     section: str
     summary: str
     offenders: list[str] = field(default_factory=list)
+    offending_trades: list[Trade] = field(default_factory=list)
     checkable: bool = True
     unavailable_reason: str | None = None
 
@@ -203,6 +204,10 @@ def evaluate_rule_flags(
                 for t in trades
                 if t.rr_planned is not None and t.rr_planned < minimum
             ],
+            offending_trades=[
+                t for t in trades
+                if t.rr_planned is not None and t.rr_planned < minimum
+            ],
         ))
 
     score_section = section_for("SCORE_BELOW_THRESHOLD_TAKEN")
@@ -217,12 +222,16 @@ def evaluate_rule_flags(
                 for t in trades
                 if t.score is not None and t.score < floor
             ],
+            offending_trades=[
+                t for t in trades if t.score is not None and t.score < floor
+            ],
         ))
 
     size_section = section_for("SIZE_EXCEEDS_SCORE")
     labels = score_bucket_labels(config)
     if size_section and labels:
         oversized: list[str] = []
+        oversized_trades: list[Trade] = []
         for trade in trades:
             if trade.score is None or trade.size is None:
                 continue
@@ -242,11 +251,13 @@ def evaluate_rule_flags(
                 oversized.append(
                     f"{_ident(trade)} (score {trade.score} -> {permitted}, taken {trade.size})"
                 )
+                oversized_trades.append(trade)
         flags.append(RuleFlag(
             code="SIZE_EXCEEDS_SCORE",
             section=size_section,
             summary="sized above what the score threshold permits",
             offenders=oversized,
+            offending_trades=oversized_trades,
         ))
 
     criterion_section = section_for("FULL_SIZE_CRITERION_2_UNMET")
@@ -258,6 +269,9 @@ def evaluate_rule_flags(
             offenders=[
                 _ident(t) for t in trades
                 if t.criterion_2_met == "N" and t.size == "full"
+            ],
+            offending_trades=[
+                t for t in trades if t.criterion_2_met == "N" and t.size == "full"
             ],
         ))
 

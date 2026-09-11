@@ -988,6 +988,7 @@ def extract_item_side(output: str) -> str:
 def build_two_sided_case(
     fact_results: list[tuple[str, str, str]],
     unknown_results: list[tuple[str, str, str]],
+    precedent: str = "",
 ) -> str:
     """Compose the supporting/risk case from already-verified Stage 2 evidence.
 
@@ -1046,6 +1047,10 @@ def build_two_sided_case(
             "Note: side classification is off (ENABLE_SIDE_CLASSIFICATION=0), so rule-matched "
             "facts are listed as unclassified rather than argued either way."
         )
+
+    if precedent:
+        lines.append("")
+        lines.append(precedent)
 
     return "\n".join(lines)
 
