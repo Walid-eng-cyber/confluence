@@ -8,7 +8,7 @@ st.set_page_config(
     layout="wide",
 )
 
-from app.ui import review_tab, strategy_tab, theme, tracker_tab
+from app.ui import advisor_tab, review_tab, strategy_tab, theme, tracker_tab
 
 theme.inject()
 
@@ -16,6 +16,7 @@ SECTIONS = {
     "Setup Review": review_tab.render,
     "Strategy": strategy_tab.render,
     "Trade Tracker": tracker_tab.render,
+    "Advisor": advisor_tab.render,
 }
 
 st.title("Confluence")

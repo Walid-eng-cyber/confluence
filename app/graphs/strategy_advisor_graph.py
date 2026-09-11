@@ -107,9 +107,13 @@ def find_ungrounded_numbers(narrative: str, findings: str) -> list[str]:
     """Advisory check that the narrator did not introduce numbers of its own.
 
     Compared numerically, so 22.9 matches a computed 22.90. Section numbers and small
-    ordinals are ignored, so prose like "three flags" does not trip it. A rounded
-    restatement (47.6% for a computed 48%) will be reported: this is a warning to eyeball,
-    not a gate.
+    ordinals are ignored, so prose like "three flags" does not trip it.
+
+    Known limit: this is set membership, not claim-level verification. A number that appears
+    anywhere in the findings passes even when the narrative attaches it to the wrong claim,
+    so a recombined win/loss split ("4W/3L" for a computed 2W/3L) is NOT caught. It detects
+    fabricated magnitudes, not misattribution. Catching the latter needs the narrative's
+    stat claims parsed and compared field by field.
     """
     grounded = {float(token) for token in _numeric_tokens(findings)}
     grounded.update(float(n) for n in range(0, 21))
