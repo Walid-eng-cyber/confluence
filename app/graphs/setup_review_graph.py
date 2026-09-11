@@ -50,27 +50,14 @@ def build_runtime() -> SetupReviewRuntime:
 
     match_model = poc._resolve_match_model()
 
-    llm_restate = ChatOllama(
-        base_url=poc.OLLAMA_BASE_URL,
-        model=poc.OLLAMA_RESTATE_MODEL,
-        temperature=0.1,
-        num_ctx=poc.OLLAMA_NUM_CTX_RESTATE,
+    llm_restate = poc.build_chat_client(
+        poc.OLLAMA_RESTATE_MODEL, poc.OLLAMA_NUM_CTX_RESTATE
     )
-    llm_match = ChatOllama(
-        base_url=poc.OLLAMA_BASE_URL,
-        model=match_model,
-        temperature=0.1,
-        num_ctx=poc.OLLAMA_NUM_CTX_MATCH,
-        num_predict=poc.OLLAMA_MATCH_NUM_PREDICT,
-        keep_alive=poc.OLLAMA_MATCH_KEEP_ALIVE,
+    llm_match = poc.build_chat_client(
+        match_model, poc.OLLAMA_NUM_CTX_MATCH, poc.OLLAMA_MATCH_NUM_PREDICT
     )
-    llm_match_retry = ChatOllama(
-        base_url=poc.OLLAMA_BASE_URL,
-        model=match_model,
-        temperature=0.1,
-        num_ctx=poc.OLLAMA_NUM_CTX_MATCH,
-        num_predict=poc.OLLAMA_MATCH_NUM_PREDICT_RETRY,
-        keep_alive=poc.OLLAMA_MATCH_KEEP_ALIVE,
+    llm_match_retry = poc.build_chat_client(
+        match_model, poc.OLLAMA_NUM_CTX_MATCH, poc.OLLAMA_MATCH_NUM_PREDICT_RETRY
     )
 
     poc.warm_match_model(llm_match)

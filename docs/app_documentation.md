@@ -92,6 +92,7 @@ two-tier split is worth the swap cost.
 |---|---|---|
 | `ENABLE_SIDE_CLASSIFICATION` | `0` | Adds the `Side` field so the two-sided case can argue each fact. **Off by default**: enabling it changes the match prompt the eval harness measures, so re-baseline first. With it off, rule-matched facts are listed as unclassified and the output says so. |
 | `ENABLE_DYNAMIC_SECTION_CTX` | `0` | Per-section context sizing with cached clients |
+| `OLLAMA_DISABLE_THINKING` | `0` | Sends Ollama's `think: false`, stopping qwen3 spending most of its generation budget on reasoning that is then stripped. Measured 3x faster end to end. **Off by default**: it changes what the model generates, so re-baseline the eval before promoting. |
 
 ### Data
 
@@ -100,7 +101,43 @@ two-tier split is worth the swap cost.
 | `TRADE_DB_PATH` | `./data/trades/confluence.db` | SQLite store |
 | `DEFAULT_STRATEGY_ID` | the config marked `"default": true` | Which strategy the app opens on |
 
-## 4. Running
+## 4. Performance
+
+Measured on qwen3:8b, RTX 4060, one Setup Review run over the default setup.
+
+| | Baseline | With both switches |
+|---|---|---|
+| Full run | ~146s | **~49s** |
+| One Stage 2 match call | 9.3s | 3.4s |
+| Tokens generated per match call | 310 | 52 |
+
+Two changes, in order of effect:
+
+1. **`OLLAMA_DISABLE_THINKING=1`.** Stage 2 is one model call per routed item-section pair
+   and dominates the run. Generation runs at a healthy 45 tok/s, so the cost was not the
+   hardware: qwen3 was generating ~310 tokens to produce ~55 tokens of answer, the rest
+   being `<think>` content that `_sanitize_model_text` discards afterwards.
+
+   `/no_think` in the prompt does **not** suppress it — measured 353 tokens with it versus
+   342 without. Ollama's `think: false` parameter does, but `langchain-ollama` 0.2.2 has no
+   such parameter and, being a permissive pydantic model, accepts `think=False` and silently
+   drops it. `app/core/ollama_client.py` calls `/api/chat` directly to send it.
+
+2. **One model for both stages**, e.g. `OLLAMA_RESTATE_MODEL=qwen3:8b`. Avoids swapping two
+   5GB models on an 8GB card, and the reasoning model extracted six facts where qwen3
+   extracts four — each extra fact costs another Stage 2 call, so the restate model choice
+   multiplies through the run.
+
+Not yet done, in rough order of remaining value:
+
+1. **Group items by section.** Two facts routed to the same section are two calls today; one
+   call per section would cut the call count. Changes the prompt, so it needs re-baselining.
+2. **Run Stage 2 calls concurrently.** They are independent. Limited by KV-cache memory on
+   8GB, so expect two slots rather than many.
+3. **Stream per-item results into the UI.** Does not reduce total time, but the run stops
+   looking like a 50-second blank spinner.
+
+## 5. Running
 
 ```powershell
 cd d:/confluence-scaffold/confluence
@@ -118,7 +155,7 @@ d:/confluence-scaffold/.venv-1/Scripts/python.exe scripts/setup_review_poc.py
 d:/confluence-scaffold/.venv-1/Scripts/python.exe scripts/import_trade_ledger.py <xlsx> [--dry-run] [--strategy <id>]
 ```
 
-## 5. Adding a strategy
+## 6. Adding a strategy
 
 1. Write the rules as markdown with numbered `## n. Title` headings into
    `data/knowledge_base/`.
@@ -129,7 +166,7 @@ d:/confluence-scaffold/.venv-1/Scripts/python.exe scripts/import_trade_ledger.py
 Keyword routing is substring matching, so a keyword must not be able to appear inside an
 unrelated word. `ob` matches "problem" and "job"; `grade` matches "A-grade".
 
-## 6. Known limits
+## 7. Known limits
 
 1. Row-level quote precision varies with section complexity. See
    [eval_pipeline_and_results.md](eval_pipeline_and_results.md).
@@ -140,7 +177,7 @@ unrelated word. `ob` matches "problem" and "job"; `grade` matches "A-grade".
 5. Reports cannot break down by entry model, session or zone grade: those fields are
    populated for none of the logged trades.
 
-## 7. Related documents
+## 8. Related documents
 
 | Document | Covers |
 |---|---|
