@@ -20,6 +20,7 @@ flowchart TB
         R["Setup Review"]
         S["Strategy"]
         T["Trade Tracker"]
+        A["Advisor"]
     end
 
     subgraph GRAPHS["LangGraph pipelines"]
@@ -41,6 +42,7 @@ flowchart TB
     S --> KB
     T --> DB
     T --> STATS
+    A --> ADV
 
     SRG -->|"deterministic routing,<br/>then quote verification"| KB
     SRG --> LLM
@@ -157,13 +159,15 @@ comparison is numeric, so 22.9 matches a computed 22.90. It is advisory, not a g
 
 ## 5. Frontend
 
-Three sections:
+Four sections:
 
 1. **Setup Review** - the pipeline above, showing verdict, two-sided case and per-item evidence.
 2. **Strategy** - the strategy document rendered from source, so what is displayed cannot
    drift from what the pipeline actually reads.
 3. **Trade Tracker** - the logged trades, with filters, summary metrics, an equity curve and
    rule-adherence flags recomputed for the current selection.
+4. **Advisor** - computed statistics and rule flags render immediately; narration sits behind
+   a button because it costs a model call.
 
 Navigation is session state rather than `st.tabs`: a tab's selection is client-side and is
 lost on rerun, which bounced the user out of the section whenever a filter fired.
@@ -243,15 +247,18 @@ Not built:
 
 ## 11. Documentation
 
-1. [product_plan.md](docs/product_plan.md) - the original plan: vision, decisions, tech-stack
+1. [foundations.md](docs/foundations.md) - **start here.** How each technology works from the
+   ground up (LLMs, prompting, grounding, RAG and embeddings, LangGraph, SQLite, Streamlit)
+   and exactly where this codebase uses it and why.
+2. [product_plan.md](docs/product_plan.md) - the original plan: vision, decisions, tech-stack
    rationale, MVP definition, roadmap and open questions.
-2. [app_documentation.md](docs/app_documentation.md) - the Streamlit app and Setup Review
+3. [app_documentation.md](docs/app_documentation.md) - the Streamlit app and Setup Review
    internals.
-3. [trade_store_and_advisor.md](docs/trade_store_and_advisor.md) - schema decisions, the
+4. [trade_store_and_advisor.md](docs/trade_store_and_advisor.md) - schema decisions, the
    importer's self-check and the advisor's flags.
-4. [eval_pipeline_and_results.md](docs/eval_pipeline_and_results.md) - the eval harness and
+5. [eval_pipeline_and_results.md](docs/eval_pipeline_and_results.md) - the eval harness and
    measured results.
-5. [setup_review_poc_last_3_days.md](docs/setup_review_poc_last_3_days.md) - how the Setup
+6. [setup_review_poc_last_3_days.md](docs/setup_review_poc_last_3_days.md) - how the Setup
    Review hardening was arrived at.
 
 ---
