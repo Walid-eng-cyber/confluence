@@ -32,6 +32,9 @@ OLLAMA_NUM_CTX_MATCH_CAP = int(os.getenv("OLLAMA_NUM_CTX_MATCH_CAP", "4096"))
 OLLAMA_NUM_CTX_MATCH = min(OLLAMA_NUM_CTX_MATCH, OLLAMA_NUM_CTX_MATCH_CAP)
 OLLAMA_SECTION_CTX_FLOOR = int(os.getenv("OLLAMA_SECTION_CTX_FLOOR", "2048"))
 ENABLE_DYNAMIC_SECTION_CTX = os.getenv("ENABLE_DYNAMIC_SECTION_CTX", "0") == "1"
+# Off by default: enabling it changes the match prompt the eval harness measures,
+# so re-baseline scripts/eval_match.py before promoting it.
+ENABLE_SIDE_CLASSIFICATION = os.getenv("ENABLE_SIDE_CLASSIFICATION", "0") == "1"
 OLLAMA_RETRIES = int(os.getenv("OLLAMA_RETRIES", "1"))
 OLLAMA_RETRY_DELAY_SEC = float(os.getenv("OLLAMA_RETRY_DELAY_SEC", "0.2"))
 OLLAMA_RETRY_MAX_DELAY_SEC = float(os.getenv("OLLAMA_RETRY_MAX_DELAY_SEC", "1.0"))
@@ -500,7 +503,27 @@ def _extract_field_value(text: str, field: str) -> str | None:
 
     return None
 
-def _normalize_structured_response(text: str, second_field: str) -> tuple[str, str]:
+def _normalize_side(text: str) -> str:
+    """Map the model's Side label onto SIDE_VALUES.
+
+    Defaults to NEUTRAL, never to SUPPORTS: an unreadable or ambiguous label must not
+    become a point in favour of the trade.
+    """
+    raw = _extract_field_value(text, "Side")
+    if not raw:
+        return "NEUTRAL"
+
+    found = {token for token in re.findall(r"[A-Za-z]+", raw.upper()) if token in SIDE_VALUES}
+    if len(found) == 1:
+        return found.pop()
+    return "NEUTRAL"
+
+
+def _normalize_structured_response(
+    text: str,
+    second_field: str,
+    include_side: bool = False,
+) -> tuple[str, str]:
     """Keep only Status + Quote + second_field with explicit ERROR separation."""
     quote = _extract_field_value(text, "Quote")
     detail = _extract_field_value(text, second_field)
@@ -545,16 +568,23 @@ def _normalize_structured_response(text: str, second_field: str) -> tuple[str, s
             ),
         )
 
-    return (
-        "OK",
-        (
-            "Status: OK\n"
-            f'Quote: "{quote}"\n'
-            f"{second_field}: {detail}"
-        ),
+    ok_response = (
+        "Status: OK\n"
+        f'Quote: "{quote}"\n'
+        f"{second_field}: {detail}"
     )
+    if include_side:
+        ok_response += f"\nSide: {_normalize_side(text)}"
 
-def _invoke_with_retry(llm, prompt: str, second_field: str, llm_on_length_retry=None) -> tuple[str, str]:
+    return "OK", ok_response
+
+def _invoke_with_retry(
+    llm,
+    prompt: str,
+    second_field: str,
+    llm_on_length_retry=None,
+    include_side: bool = False,
+) -> tuple[str, str]:
     """Invoke model with retries and return a safe, parseable response string."""
     global _RAW_PARSE_DEBUG_PRINTED
 
@@ -584,7 +614,9 @@ def _invoke_with_retry(llm, prompt: str, second_field: str, llm_on_length_retry=
                     retry_resp = llm_on_length_retry.invoke([HumanMessage(content=prompt)])
                     retry_text = retry_resp.content.strip()
                     retry_reason = str((retry_resp.response_metadata or {}).get("done_reason", "")).lower()
-                    retry_status, retry_normalized = _normalize_structured_response(retry_text, second_field)
+                    retry_status, retry_normalized = _normalize_structured_response(
+                        retry_text, second_field, include_side=include_side
+                    )
                     if retry_status != "ERROR":
                         return retry_status, retry_normalized
                     if retry_text:
@@ -609,7 +641,9 @@ def _invoke_with_retry(llm, prompt: str, second_field: str, llm_on_length_retry=
                         f"Error: done_reason=length, num_predict={OLLAMA_MATCH_NUM_PREDICT}"
                     ),
                 )
-            status, normalized = _normalize_structured_response(text, second_field)
+            status, normalized = _normalize_structured_response(
+                text, second_field, include_side=include_side
+            )
             if status == "ERROR" and RAW_PARSE_DEBUG_ONCE and not _RAW_PARSE_DEBUG_PRINTED:
                 print(f"[raw-parse-debug-response] type={type(response).__name__} repr={repr(response)}", file=sys.stderr)
                 print(f"[raw-parse-debug-content-type] {type(response.content).__name__}", file=sys.stderr)
@@ -660,17 +694,38 @@ not reconstruct a table row from memory.
 - If the section does not actually address this fact, write: NOT COVERED
 - Do not add rules that are not in the text below.
 - Do not give a verdict on the trade.
-
+{side_rule}
 Answer in exactly this format:
 Quote: "<exact text from the section>"
 Implication: <one or two sentences>
-
+{side_field}
 === FACT ===
 {fact}
 
 === SECTION {section_number} ===
 {section_text}
 """
+
+SIDE_VALUES = ("SUPPORTS", "RISK", "NEUTRAL")
+
+SIDE_RULE_TEXT = (
+    "- Side is SUPPORTS if the quoted rule, applied to this fact, argues in favour of the "
+    "setup; RISK if it argues against it or flags a problem; NEUTRAL if the rule applies but "
+    "does neither.\n"
+)
+
+SIDE_FIELD_TEXT = "Side: <SUPPORTS, RISK, or NEUTRAL>\n"
+
+
+def _match_fact_prompt(fact: str, section_number: str, section_text: str) -> str:
+    """Render the fact prompt; with the flag off this is byte-identical to the eval baseline."""
+    return MATCH_FACT_PROMPT.format(
+        fact=fact,
+        section_number=section_number,
+        section_text=section_text,
+        side_rule=SIDE_RULE_TEXT if ENABLE_SIDE_CLASSIFICATION else "",
+        side_field=SIDE_FIELD_TEXT if ENABLE_SIDE_CLASSIFICATION else "",
+    )
 
 MATCH_UNKNOWN_PROMPT = """/no_think
 
@@ -705,8 +760,10 @@ def match_one_fact(
     llm_on_length_retry=None,
     llm_for_ctx=None,
     llm_on_length_retry_for_ctx=None,
+    section_numbers: list[str] | None = None,
 ) -> tuple[str, str]:
-    section_numbers = route(fact)
+    if section_numbers is None:
+        section_numbers = route(fact)
     if not section_numbers:
         return (
             "NOT_ROUTED",
@@ -733,11 +790,7 @@ def match_one_fact(
             continue
 
         excerpt = _prepare_section_text_for_prompt(section_number, section_text, fact)
-        prompt = MATCH_FACT_PROMPT.format(
-            fact=fact,
-            section_number=section_number,
-            section_text=excerpt,
-        )
+        prompt = _match_fact_prompt(fact, section_number, excerpt)
         if ENABLE_DYNAMIC_SECTION_CTX:
             section_ctx = _recommended_num_ctx_for_section(excerpt)
             active_llm = llm_for_ctx(section_ctx) if llm_for_ctx is not None else llm
@@ -755,6 +808,7 @@ def match_one_fact(
             prompt,
             "Implication",
             llm_on_length_retry=retry_llm,
+            include_side=ENABLE_SIDE_CLASSIFICATION,
         )
         status, response_text = _table_row_guard(status, response_text, "Implication", section_text)
         statuses.append(status)
@@ -779,8 +833,10 @@ def match_one_unknown(
     llm_on_length_retry=None,
     llm_for_ctx=None,
     llm_on_length_retry_for_ctx=None,
+    section_numbers: list[str] | None = None,
 ) -> tuple[str, str]:
-    section_numbers = route(unknown)
+    if section_numbers is None:
+        section_numbers = route(unknown)
     if not section_numbers:
         return (
             "NOT_ROUTED",
@@ -877,6 +933,97 @@ def build_stage3_verdict(
         "Verdict: all routed checks completed with no missing required inputs.\n"
         "Reason: no blocking unknowns and no evaluation errors were detected."
     )
+
+SIDE_PRECEDENCE = ("RISK", "SUPPORTS", "NEUTRAL")
+
+
+def _first_field(output: str, field: str) -> str | None:
+    """Return the first meaningful value for a labelled field in an item's output block."""
+    pattern = re.compile(rf"(?m)^\s*{re.escape(field)}\s*:\s*(.+?)\s*$")
+    for match in pattern.finditer(output):
+        value = match.group(1).strip().strip('"').strip()
+        if value and value.upper() not in {"NOT COVERED", "N/A"}:
+            return value
+    return None
+
+
+def extract_item_side(output: str) -> str:
+    """Aggregate the per-section Side labels inside one item's Stage 2 output.
+
+    RISK outranks SUPPORTS so a rule flagging a problem is never hidden behind a
+    supporting match on a different section.
+    """
+    found = set(re.findall(r"(?m)^\s*Side:\s*([A-Za-z]+)\s*$", output))
+    for side in SIDE_PRECEDENCE:
+        if side in found:
+            return side
+    return "NEUTRAL"
+
+
+def build_two_sided_case(
+    fact_results: list[tuple[str, str, str]],
+    unknown_results: list[tuple[str, str, str]],
+) -> str:
+    """Compose the supporting/risk case from already-verified Stage 2 evidence.
+
+    Adds no new claims: every line traces back to a quote that was checked against
+    the routed section text.
+    """
+    supporting: list[str] = []
+    risks: list[str] = []
+    unclassified: list[str] = []
+
+    for status, item, output in fact_results:
+        quote = _first_field(output, "Quote")
+        evidence = f'\n    Rule: "{quote}"' if quote else ""
+
+        if status == "ERROR":
+            risks.append(f"  - COULD NOT EVALUATE: {item}")
+        elif status == "NOT_ROUTED":
+            risks.append(f"  - UNCHECKED (router matched no section): {item}")
+        elif status == "NOT_COVERED":
+            risks.append(f"  - NO GOVERNING RULE MATCHED: {item}")
+        elif extract_item_side(output) == "RISK":
+            risks.append(f"  - {item}{evidence}")
+        elif extract_item_side(output) == "SUPPORTS":
+            supporting.append(f"  - {item}{evidence}")
+        else:
+            unclassified.append(f"  - {item}{evidence}")
+
+    for status, item, output in unknown_results:
+        if status == "ERROR":
+            risks.append(f"  - COULD NOT EVALUATE missing input: {item}")
+            continue
+
+        # Only an OK item carries a real explanation. On the guard paths the Blocks line
+        # holds a rejection diagnostic, which must not be shown as trading rationale.
+        blocks = _first_field(output, "Blocks") if status == "OK" else None
+        if blocks:
+            risks.append(f"  - MISSING: {item}\n    Blocks: {blocks}")
+        else:
+            risks.append(f"  - MISSING: {item}\n    (no governing rule was matched for this input)")
+
+    lines = ["=== SUPPORTING CASE ==="]
+    lines.extend(supporting or ["  (nothing in the document was matched in favour of this setup)"])
+
+    lines.append("")
+    lines.append("=== RISK / INVALIDATION CASE ===")
+    lines.extend(risks or ["  (no unknowns, gaps or evaluation failures were recorded)"])
+
+    if unclassified:
+        lines.append("")
+        lines.append("=== RULE-MATCHED, NOT CLASSIFIED ===")
+        lines.extend(unclassified)
+
+    if not ENABLE_SIDE_CLASSIFICATION:
+        lines.append("")
+        lines.append(
+            "Note: side classification is off (ENABLE_SIDE_CLASSIFICATION=0), so rule-matched "
+            "facts are listed as unclassified rather than argued either way."
+        )
+
+    return "\n".join(lines)
+
 
 def build_human_message(strategy_text: str , setup_description: str) -> str:
     strategy_excerpt = build_relevant_strategy_excerpt(
@@ -1022,3 +1169,6 @@ if __name__ == "__main__":
 
     print("\n--- STAGE 3: VERDICT ---\n")
     print(build_stage3_verdict(fact_results, unknown_results))
+
+    print("\n--- TWO-SIDED CASE ---\n")
+    print(build_two_sided_case(fact_results, unknown_results))

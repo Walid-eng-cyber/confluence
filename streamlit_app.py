@@ -57,6 +57,10 @@ if run_clicked:
     st.subheader("Stage 3 Verdict")
     st.code(result.stage3_verdict, language="text")
 
+    st.subheader("Two-Sided Case")
+    st.caption("Composed only from quotes already verified against the routed strategy sections.")
+    st.code(result.two_sided_case, language="text")
+
     with st.expander("Stage 1 Raw Output", expanded=False):
         st.code(result.stage1_raw, language="text")
 

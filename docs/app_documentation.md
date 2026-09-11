@@ -38,32 +38,38 @@ Result:
 ```mermaid
 flowchart TD
     UI[Streamlit UI] --> SVC[Setup Review Service]
-    SVC --> POC[setup_review_poc.py]
+    SVC --> GRAPH[LangGraph: parse -> retrieve -> validate -> recommend]
+    GRAPH --> POC[setup_review_poc.py]
     POC --> STRAT[nabil_strategy.md]
     POC --> OLLAMA[Ollama Models]
-    POC --> OUT[Stage 1 + Stage 2 + Stage 3]
+    GRAPH --> OUT[Stage 1 + Stage 2 + Stage 3 + two-sided case]
     OUT --> UI
 ```
 
 What each block is for:
 
 1. Streamlit UI: operator interaction and result display.
-2. Service layer: calls pipeline and returns structured objects to UI.
-3. setup_review_poc.py: core matching logic and safety behavior.
-4. Strategy markdown: source-of-truth rules.
-5. Ollama: local model inference runtime.
+2. Service layer: invokes the graph and returns structured objects to UI.
+3. LangGraph graph: the pipeline's control flow as explicit, inspectable nodes.
+4. setup_review_poc.py: core matching logic and safety behavior.
+5. Strategy markdown: source-of-truth rules.
+6. Ollama: local model inference runtime.
 
 ## 4. Request lifecycle
 
 When the user clicks Run setup review:
 
 1. UI reads setup text.
-2. Service loads and caches the pipeline module.
-3. Stage 1 model restates facts and unknowns.
-4. Stage 2 routes each item and evaluates against routed sections.
-5. Stage 2 validates quote grounding and normalizes response shape.
-6. Stage 3 produces final decision status.
-7. UI displays runtime, status counts, and per-item evidence.
+2. Service invokes the compiled graph (built once per process, including model warmup).
+3. parse node: Stage 1 model restates facts and unknowns.
+4. retrieve node: re-reads the strategy sections and computes the deterministic routing plan.
+5. validate node: Stage 2 evaluates each item against its routed sections, verifying quote
+   grounding and normalizing response shape.
+6. recommend node: Stage 3 verdict plus the two-sided case.
+7. UI displays runtime, status counts, verdict, the case, and per-item evidence.
+
+The retrieve node re-reads nabil_strategy.md on every run, so edits to the strategy take
+effect without restarting the app. Model clients are cached, so they do not.
 
 ## 5. Core files and what they are for
 
@@ -72,14 +78,22 @@ When the user clicks Run setup review:
    - Shows metrics, Stage 1 raw output, Stage 2 item output, Stage 3 verdict.
 
 2. app/services/setup_review_service.py
-   - Runtime bridge between UI and pipeline script.
-   - Creates model clients, runs evaluation, returns typed result objects.
+   - Runtime bridge between UI and graph.
+   - Compiles the graph once, invokes it, returns typed result objects.
 
-3. scripts/setup_review_poc.py
+3. app/graphs/setup_review_graph.py
+   - The pipeline as a LangGraph StateGraph (parse, retrieve, validate, recommend).
+   - Owns model client construction and warmup; holds no strategy text.
+
+4. app/core/pipeline_loader.py
+   - Loads scripts/setup_review_poc.py as a module, once per process.
+
+5. scripts/setup_review_poc.py
    - Core logic implementation.
-   - Includes routing, parsing, matching, retries, normalization, verification, and verdict gating.
+   - Includes routing, parsing, matching, retries, normalization, verification, verdict gating,
+     and two-sided case composition.
 
-4. data/knowledge_base/nabil_strategy.md
+6. data/knowledge_base/nabil_strategy.md
    - Rule source of truth used for section parsing and quote verification.
 
 ## 6. Status model and why it exists
@@ -151,6 +165,14 @@ Important controls:
 5. section-focused excerpts + per-section num_ctx
    - Reduces prompt load and improves runtime efficiency.
 
+6. ENABLE_SIDE_CLASSIFICATION (default 0)
+   - Adds a Side field (SUPPORTS / RISK / NEUTRAL) to the Stage 2 fact prompt so the
+     two-sided case can argue each rule-matched fact.
+   - Off by default because enabling it changes the exact match prompt the eval harness
+     measures. Re-baseline scripts/eval_match.py before promoting it, per the decision rule
+     in eval_pipeline_and_results.md.
+   - With the flag off the rendered prompt is byte-identical to the pre-D4 baseline.
+
 ## 9. Frontend behavior
 
 UI behavior in streamlit_app.py:
@@ -164,13 +186,38 @@ UI behavior in streamlit_app.py:
    - ERROR count
    - NOT_ROUTED count
 4. Stage 3 verdict shown first.
-5. Stage 1 raw output expandable.
-6. Stage 2 per-item details expandable.
+5. Two-sided case.
+6. Stage 1 raw output expandable.
+7. Stage 2 per-item details expandable.
 
 Purpose:
 
 1. Give quick top-line health (counts + verdict).
 2. Preserve full traceability for diagnostics.
+
+### The two-sided case
+
+build_two_sided_case() composes the supporting and risk sides from Stage 2 output only. It
+makes no model call and adds no claim that is not already backed by a quote checked against
+the routed section, so it introduces no new hallucination surface.
+
+Placement rules:
+
+1. Supporting side: facts whose governing rule was matched and labelled SUPPORTS.
+2. Risk side: facts labelled RISK, facts with no governing rule matched, facts the router
+   skipped, missing inputs, and anything that failed to evaluate.
+3. Unclassified: facts matched to a rule but labelled NEUTRAL.
+
+Safety behaviour:
+
+1. An unreadable or ambiguous Side label degrades to NEUTRAL, never to SUPPORTS, so a
+   garbled response cannot become an argument in favour of a trade.
+2. Where one item routes to several sections, RISK outranks SUPPORTS, so a rule flagging a
+   problem is never hidden behind a supporting match elsewhere.
+3. Guard rejection diagnostics (heading-like quote, incomplete table row) are never shown as
+   trading rationale. An item on a guard path is reported as having no governing rule matched.
+4. With ENABLE_SIDE_CLASSIFICATION off, every rule-matched fact is unclassified and the case
+   says so, rather than implying an empty supporting side is a finding.
 
 ## 10. Evaluation and quality measurement
 
@@ -208,6 +255,14 @@ Open:
 1. Row-level quote precision can still vary by section complexity.
 2. Some runs may require length-cap retry escalation for specific items.
 3. Current MVP is single-page, single-flow (Setup Review only).
+4. The default two-model config does not fit an 8GB GPU. OLLAMA_RESTATE_MODEL
+   (deepseek-r1:8b) and OLLAMA_MATCH_MODEL (qwen3:8b) are about 5GB each, and
+   keep_alive pins the match model after warmup, so a run needs roughly 10GB. On an
+   RTX 4060 with a desktop already using about 2GB this terminates llama-server and can
+   take the whole Ollama service down. Point both variables at one model until the two-tier
+   split is worth the swap cost.
+5. Guards map a bad quote to NOT_COVERED, so that status means "no usable rule content was
+   returned", not strictly "the section has no such rule".
 
 ## 13. Next implementation candidates
 
