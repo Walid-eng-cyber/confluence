@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date, timedelta
 
 from app.models.trade import OUTCOME_BREAKEVEN, OUTCOME_LOSS, OUTCOME_OPEN, OUTCOME_WIN, Trade
 
@@ -225,6 +226,119 @@ def evaluate_rule_flags(trades: list[Trade]) -> list[RuleFlag]:
     ))
 
     return flags
+
+
+PERIODS = ("day", "week", "month")
+
+
+def period_bounds(period: str, anchor: date) -> tuple[str, str]:
+    """Inclusive ISO bounds for the day, week or month containing `anchor`.
+
+    Daily, weekly and monthly reports are the same code path with different bounds, which is
+    the whole of backlog item E3.
+    """
+    if period == "day":
+        start = end = anchor
+    elif period == "week":
+        start = anchor - timedelta(days=anchor.weekday())
+        end = start + timedelta(days=6)
+    elif period == "month":
+        start = anchor.replace(day=1)
+        next_month = (start + timedelta(days=32)).replace(day=1)
+        end = next_month - timedelta(days=1)
+    else:
+        raise ValueError(f"Unknown period {period!r}; expected one of {PERIODS}")
+
+    return start.isoformat(), end.isoformat()
+
+
+def build_instrument_blocks(trades: list[Trade]) -> list[StatBlock]:
+    """Per-instrument performance, worst net R first so problems lead."""
+    instruments = sorted({t.instrument for t in trades})
+    blocks = [
+        build_stat_block(instrument, [t for t in trades if t.instrument == instrument])
+        for instrument in instruments
+    ]
+    return sorted([b for b in blocks if b.trades], key=lambda b: b.net_r)
+
+
+def rr_discipline(trades: list[Trade]) -> dict[str, object]:
+    """How planned RR compared with what was realised, where both were logged."""
+    paired = [t for t in trades if t.rr_planned is not None and t.rr_achieved is not None]
+    if not paired:
+        return {"count": 0, "avg_gap": None, "hit_or_beat": 0}
+
+    gaps = [t.rr_achieved - t.rr_planned for t in paired]
+    return {
+        "count": len(paired),
+        "avg_gap": round(sum(gaps) / len(gaps), 2),
+        "hit_or_beat": sum(1 for gap in gaps if gap >= 0),
+    }
+
+
+def format_report_findings(
+    trades: list[Trade],
+    start: str,
+    end: str,
+) -> str:
+    """The factual block for a period report, computed entirely in code."""
+    stats = compute_strategy_stats(trades)
+    flags = evaluate_rule_flags(trades)
+    overall: StatBlock = stats["overall"]  # type: ignore[assignment]
+    discipline = rr_discipline(trades)
+
+    lines = [f"=== PERIOD {start} to {end} ===", overall.line()]
+    lines.append(
+        f"logged in period: {stats['logged_total']} ({len(stats['open_trades'])} still open)"
+    )
+
+    if discipline["count"]:
+        direction = "short of" if discipline["avg_gap"] < 0 else "above"
+        lines.append(
+            f"realised R minus planned RR: {discipline['avg_gap']:+.2f} on average across "
+            f"{discipline['count']} trades, meaning realised fell {direction} plan; "
+            f"{discipline['hit_or_beat']} of them hit or beat plan"
+        )
+
+    instrument_blocks = build_instrument_blocks(trades)
+    if instrument_blocks:
+        lines.append("")
+        lines.append("=== BY INSTRUMENT (worst net R first) ===")
+        lines.extend(block.line() for block in instrument_blocks)
+        # Stated outright so the narrator never has to rank a list itself.
+        lines.append(
+            f"best net R: {instrument_blocks[-1].label} {instrument_blocks[-1].net_r:+.2f}R · "
+            f"worst net R: {instrument_blocks[0].label} {instrument_blocks[0].net_r:+.2f}R"
+        )
+
+    for title, key in (("BY SCORE BUCKET", "by_score_bucket"), ("BY CRITERION 2", "by_criterion_2")):
+        blocks: list[StatBlock] = stats[key]  # type: ignore[assignment]
+        if blocks:
+            lines.append("")
+            lines.append(f"=== {title} ===")
+            lines.extend(block.line() for block in blocks)
+
+    label_counts: dict[str, int] = stats["label_counts"]  # type: ignore[assignment]
+    if label_counts:
+        lines.append("")
+        lines.append("=== RECORDED NO-TRADE LABELS ===")
+        lines.extend(f"{label}: {count}" for label, count in sorted(label_counts.items()))
+
+    fired = [flag for flag in flags if flag.offenders]
+    lines.append("")
+    lines.append("=== RULE BREACHES IN PERIOD ===")
+    if fired:
+        lines.extend(flag.line() for flag in fired)
+    else:
+        lines.append("none of the checkable rules were breached")
+
+    unavailable = [flag for flag in flags if not flag.checkable]
+    if unavailable:
+        lines.append("")
+        lines.append("=== NOT CHECKABLE ===")
+        lines.extend(flag.line() for flag in unavailable)
+
+    return "\n".join(lines)
 
 
 def format_findings(stats: dict[str, object], flags: list[RuleFlag]) -> str:

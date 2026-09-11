@@ -20,12 +20,14 @@ flowchart TB
         R["Setup Review"]
         S["Strategy"]
         T["Trade Tracker"]
+        P["Reports"]
         A["Advisor"]
     end
 
     subgraph GRAPHS["LangGraph pipelines"]
         SRG["Setup Review<br/>parse → retrieve → validate → recommend"]
         ADV["Strategy Advisor<br/>compute → retrieve → narrate"]
+        REP["Report<br/>fetch → compute → narrate"]
     end
 
     STATS["trade_stats<br/>stats + rule flags, computed in Python"]
@@ -43,6 +45,9 @@ flowchart TB
     T --> DB
     T --> STATS
     A --> ADV
+    P --> REP
+    REP --> STATS
+    REP --> LLM
 
     SRG -->|"deterministic routing,<br/>then quote verification"| KB
     SRG --> LLM
@@ -157,22 +162,43 @@ to say so, so a rule change cannot be overfitted to a handful of trades.
 After narration, every number in the output is compared against the computed findings. The
 comparison is numeric, so 22.9 matches a computed 22.90. It is advisory, not a gate.
 
-## 5. Frontend
+## 5. Reports
 
-Four sections:
+How you actually traded over a day, week or month, from the trade log alone.
+
+1. **fetch** - trades for the date range.
+2. **compute** - every number in Python: overall, RR discipline, per instrument, score
+   bucket, criterion 2, rule breaches.
+3. **narrate** - the model reads the finished numbers back.
+
+Daily, weekly and monthly are one computation over different bounds, not three features.
+Unlike the Advisor it does not retrieve strategy text: a period report is grounded in what
+you did, and the rules enter only through breach flags that already name their sections.
+
+Watching it narrate produced the clearest lesson in the project: it inverted an RR direction
+and mis-ranked an instrument list, and the grounding check caught neither, because every
+number involved was real. Both were fixed by computing the statement rather than the
+ingredients - the findings now say which way the RR gap runs and name the best and worst
+instrument outright. See [reports.md](docs/reports.md).
+
+## 6. Frontend
+
+Five sections:
 
 1. **Setup Review** - the pipeline above, showing verdict, two-sided case and per-item evidence.
 2. **Strategy** - the strategy document rendered from source, so what is displayed cannot
    drift from what the pipeline actually reads.
 3. **Trade Tracker** - the logged trades, with filters, summary metrics, an equity curve and
    rule-adherence flags recomputed for the current selection.
-4. **Advisor** - computed statistics and rule flags render immediately; narration sits behind
+4. **Reports** - day, week or month over the trade log; every number computed, the written
+   report behind a button.
+5. **Advisor** - computed statistics and rule flags render immediately; narration sits behind
    a button because it costs a model call.
 
 Navigation is session state rather than `st.tabs`: a tab's selection is client-side and is
 lost on rerun, which bounced the user out of the section whenever a filter fired.
 
-## 6. Running it
+## 7. Running it
 
 ```powershell
 cd d:/confluence-scaffold/confluence
@@ -186,6 +212,13 @@ d:/confluence-scaffold/.venv-1/Scripts/python.exe scripts/run_strategy_advisor.p
 d:/confluence-scaffold/.venv-1/Scripts/python.exe scripts/run_strategy_advisor.py --stats-only
 ```
 
+Reports, from the command line:
+
+```powershell
+d:/confluence-scaffold/.venv-1/Scripts/python.exe scripts/run_report.py --period month --anchor 2026-09-15
+d:/confluence-scaffold/.venv-1/Scripts/python.exe scripts/run_report.py --period week --stats-only
+```
+
 `--stats-only` skips the model entirely and prints the computed findings.
 
 Backfilling the trade store:
@@ -194,7 +227,7 @@ Backfilling the trade store:
 d:/confluence-scaffold/.venv-1/Scripts/python.exe scripts/import_trade_ledger.py <path-to-xlsx> [--dry-run]
 ```
 
-## 7. Project layout
+## 8. Project layout
 
 ```
 app/
@@ -212,31 +245,30 @@ scripts/       pipeline entry points, importer, eval harness
 tests/         eval ground truth
 ```
 
-## 8. Quality measurement
+## 9. Quality measurement
 
 Eleven fixed ground-truth items are run repeatedly against Stage 2 and scored for section
 routing, quote precision, unverified quotes and heading quotes. Any change to the match
 prompt must be re-baselined through this harness before it is promoted to default. See
 [eval_pipeline_and_results.md](docs/eval_pipeline_and_results.md).
 
-## 9. Current status
+## 10. Current status
 
 Built and working:
 
 1. Setup Review, end to end, as a LangGraph pipeline with the two-sided case.
 2. Trade store, with the ledger backfilled and validated against the workbook's own totals.
 3. Strategy Advisor, critique mode, with computed stats and rule flags.
-4. Streamlit frontend with all three sections.
+4. Reports: daily, weekly and monthly over the trade log.
+5. Streamlit frontend with all five sections.
 
 Not built:
 
-1. **Reports.** It also cannot be built as originally specified: the entry-model, session and
-   zone-grade breakdowns require fields populated for zero of the logged trades.
-2. **Similar past trades inside Setup Review.** The store supports it; the definition of
+1. **Similar past trades inside Setup Review.** The store supports it; the definition of
    "similar" is open, because the original version depends on those unlogged fields.
 3. Segment-level advisor critiques and cold-start mode, both deliberately deferred.
 
-## 10. Environment notes
+## 11. Environment notes
 
 1. `OLLAMA_MODELS` may point somewhere other than the store holding this project's models
    (`qwen3:8b`, `deepseek-r1:8b`). Ollama started without the right override serves the
@@ -245,7 +277,7 @@ Not built:
    pinned by `keep_alive`) needs roughly 10GB of VRAM. On an 8GB card this terminates
    llama-server. Point both at one model until the two-tier split is worth the swap cost.
 
-## 11. Documentation
+## 12. Documentation
 
 1. [foundations.md](docs/foundations.md) - **start here.** How each technology works from the
    ground up (LLMs, prompting, grounding, RAG and embeddings, LangGraph, SQLite, Streamlit)
@@ -254,11 +286,13 @@ Not built:
    rationale, MVP definition, roadmap and open questions.
 3. [app_documentation.md](docs/app_documentation.md) - the Streamlit app and Setup Review
    internals.
-4. [trade_store_and_advisor.md](docs/trade_store_and_advisor.md) - schema decisions, the
+4. [reports.md](docs/reports.md) - the period report, and what watching it narrate taught
+   about asking a model to rank or subtract.
+5. [trade_store_and_advisor.md](docs/trade_store_and_advisor.md) - schema decisions, the
    importer's self-check and the advisor's flags.
-5. [eval_pipeline_and_results.md](docs/eval_pipeline_and_results.md) - the eval harness and
+6. [eval_pipeline_and_results.md](docs/eval_pipeline_and_results.md) - the eval harness and
    measured results.
-6. [setup_review_poc_last_3_days.md](docs/setup_review_poc_last_3_days.md) - how the Setup
+7. [setup_review_poc_last_3_days.md](docs/setup_review_poc_last_3_days.md) - how the Setup
    Review hardening was arrived at.
 
 ---
