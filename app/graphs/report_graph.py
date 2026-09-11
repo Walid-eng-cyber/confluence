@@ -98,7 +98,12 @@ def build_report_graph(runtime: ReportRuntime):
     def fetch_node(state: ReportState) -> ReportState:
         conn = connect()
         try:
-            trades = fetch_by_date_range(conn, state["start_date"], state["end_date"])
+            trades = fetch_by_date_range(
+                conn,
+                state["start_date"],
+                state["end_date"],
+                strategy_id=get_strategy(state.get("strategy_id")).id,
+            )
         finally:
             conn.close()
         return {"trades": trades}

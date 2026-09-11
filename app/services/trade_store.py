@@ -123,8 +123,12 @@ def replace_source(conn: sqlite3.Connection, source: str, trades: list[Trade]) -
     return len(trades)
 
 
-def count_trades(conn: sqlite3.Connection) -> int:
-    return conn.execute("SELECT COUNT(*) FROM trades").fetchone()[0]
+def count_trades(conn: sqlite3.Connection, strategy_id: str | None = None) -> int:
+    if strategy_id is None:
+        return conn.execute("SELECT COUNT(*) FROM trades").fetchone()[0]
+    return conn.execute(
+        "SELECT COUNT(*) FROM trades WHERE strategy_id = ?", (strategy_id,)
+    ).fetchone()[0]
 
 
 def fetch_by_date_range(
@@ -132,10 +136,19 @@ def fetch_by_date_range(
     start: str,
     end: str,
     include_open: bool = True,
+    strategy_id: str | None = None,
 ) -> list[Trade]:
-    """Fetch trades with trade_date between start and end, inclusive (ISO yyyy-mm-dd)."""
+    """Fetch trades with trade_date between start and end, inclusive (ISO yyyy-mm-dd).
+
+    `strategy_id` scopes the result to one strategy. Without it every strategy's trades are
+    returned, which would blend methodologies into a single win rate.
+    """
     sql = "SELECT * FROM trades WHERE trade_date >= ? AND trade_date <= ?"
     params: list[object] = [start, end]
+
+    if strategy_id is not None:
+        sql += " AND strategy_id = ?"
+        params.append(strategy_id)
 
     if not include_open:
         sql += " AND outcome != 'open'"

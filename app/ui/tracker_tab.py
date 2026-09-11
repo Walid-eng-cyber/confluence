@@ -10,6 +10,7 @@ from app.services.trade_stats import build_stat_block, evaluate_rule_flags
 from app.services.trade_store import connect, fetch_by_date_range, init_schema
 from app.services.strategy_registry import get_strategy
 from app.ui import theme
+from app.ui.common import empty_state
 
 COLUMNS = [
     ("trade_date", "Date"),
@@ -27,11 +28,13 @@ COLUMNS = [
 
 
 @st.cache_data(ttl=30, show_spinner=False)
-def _load() -> list[dict]:
+def _load(strategy_id: str) -> list[dict]:
     conn = connect()
     try:
         init_schema(conn)
-        trades = fetch_by_date_range(conn, "1900-01-01", "2999-12-31")
+        trades = fetch_by_date_range(
+            conn, "1900-01-01", "2999-12-31", strategy_id=strategy_id
+        )
     finally:
         conn.close()
     return [asdict(t) for t in trades]
@@ -57,15 +60,13 @@ def _colour_outcome(value: object) -> str:
 
 def render(strategy_id: str | None = None) -> None:
     config = get_strategy(strategy_id)
-    rows = _load()
+    rows = _load(config.id)
 
     st.subheader("Trade Tracker")
+    st.caption(f"Trades logged under {config.name}.")
 
     if not rows:
-        st.info(
-            "No trades in the store yet. Import the ledger export:\n\n"
-            "`python scripts/import_trade_ledger.py <path-to-xlsx>`"
-        )
+        empty_state(config, "record")
         return
 
     frame = pd.DataFrame(rows)

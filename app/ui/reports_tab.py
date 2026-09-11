@@ -13,6 +13,7 @@ from app.services.trade_stats import (
 from app.services.trade_store import connect, fetch_by_date_range, init_schema
 from app.services.strategy_registry import get_strategy
 from app.ui import theme
+from app.ui.common import empty_state
 
 
 @st.cache_resource(show_spinner=False)
@@ -20,11 +21,11 @@ def _graph():
     return build_report_graph(build_runtime())
 
 
-def _load(start: str, end: str):
+def _load(start: str, end: str, strategy_id: str):
     conn = connect()
     try:
         init_schema(conn)
-        return fetch_by_date_range(conn, start, end)
+        return fetch_by_date_range(conn, start, end, strategy_id=strategy_id)
     finally:
         conn.close()
 
@@ -53,12 +54,9 @@ def render(strategy_id: str | None = None) -> None:
         "number is calculated in Python; the model only reads them back."
     )
 
-    everything = _load("1900-01-01", "2999-12-31")
+    everything = _load("1900-01-01", "2999-12-31", config.id)
     if not everything:
-        st.info(
-            "No trades in the store yet. Import the ledger export:\n\n"
-            "`python scripts/import_trade_ledger.py <path-to-xlsx>`"
-        )
+        empty_state(config, "report")
         return
 
     logged = sorted(t.trade_date for t in everything)
@@ -79,7 +77,7 @@ def render(strategy_id: str | None = None) -> None:
         start, end = period_bounds(period, anchor)
         right.caption(f"{period.capitalize()} covering {start} to {end}")
 
-    trades = _load(start, end)
+    trades = _load(start, end, config.id)
     if not trades:
         st.warning(f"No trades logged between {start} and {end}.")
         return

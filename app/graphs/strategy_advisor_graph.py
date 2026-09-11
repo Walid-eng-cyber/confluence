@@ -113,6 +113,7 @@ def build_strategy_advisor_graph(runtime: AdvisorRuntime):
                 conn,
                 state.get("start_date", "1900-01-01"),
                 state.get("end_date", "2999-12-31"),
+                strategy_id=get_strategy(state.get("strategy_id")).id,
             )
         finally:
             conn.close()
